@@ -1,0 +1,24 @@
+New Block: Atlas Cutter: 
+    A block that stores infinite* maps. *or whatever a safe maximum ends up being.
+    Can "Dump" all the maps out of an atlas, and "Up" all the maps into an atlas. Let's you return to base after exploring, upload all your maps into a table, and the next guy can come, supply paper, and pull out a fully up to date map.
+    Maps can be pulled out as items individualy as well, and the storage allows 'stacking' of duplicate maps. Deduping map IDs should also be a thing, where if #2 and #302 are the same scale and type of map, it cuts #302, both the item and the entry, and makes it into another #2.
+    If features that are specified for the vanilla cartography table are better homed here, then they'd go here.
+    
+New Item: Leyline Sensor
+    While held, this causes the closest three defined waypoints (the on map indicator) to show up in the world.
+    
+New Concept: Drawn Layer
+    This may not be worth implementing, so low priority item. In addition to 'scale' layers, there is a drawn layer that is even with the 'shipwreck cove' and 'buried treasure' map layer. Let's players draw routes in addition to mapping the world.
+    
+New Block: Paper Block
+    8x Paper Sheafs and 1x string makes paper blocks. Placeable and flammable. Breaking them with any tool causes them to drop as their component parts. Breaking them with shears causes them to drop as 8*9 pieces of paper.
+    
+OPEN ITEM: MINIMAP PARITY
+    Other minimaps, that are 'free', have a lot more features than this one, which is not free (costs paper, costs a bit of iron, costs books). So the objective is feature parity with the space.
+    
+Time	Str	Sat
+10	10	1.5
+10	40 	5.25
+10 	50	6.75
+10 	75 	9.5
+10 	100 	10 r 3
