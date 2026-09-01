@@ -123,28 +123,48 @@ should be a supported configuration, not an accident.
       fresh atlas lacks, and the two stop stacking. Needs no mod guard. Not sent upstream
       since it surfaced after the PRs went out; worth offering later.
 
-### 2.2 Performance — do this *before* layers
+### 2.2 Performance — **implemented, awaiting the gate** (`c4b8f95`, `4e8a…`)
 
-Dirty-chunk tracking (D1, §5.6 Option 2). It changes what a layer costs, so it changes
-whether the more invasive mitigations are needed at all.
+- [x] Track block changes per chunk — `LevelChunkMixin` stamps the game time on
+      `setBlockState` through the `ChunkChangeStamp` duck interface.
+- [x] Skip the scan entirely when a map has no blank pixels and nothing near the player
+      has changed since it was last scanned. Both schedulers honour it.
+- [x] `ChunkChangeIndex` queries the 16×16 chunks around the player, computed **lazily**
+      so a player filling in new territory never pays for it.
+- [x] Config off-switch `skip_unchanged_maps`, default on.
+- [x] Counters behind `debug_map_updates`, logging performed/skipped every 30s.
+- [ ] ~~Rescan only *pixels* covering dirty chunks~~ — deferred. Skipping whole scans is
+      the large win; per-pixel granularity means rewriting the scan loop itself and only
+      helps a map that is partly dirty, which is the rarer case.
 
-- [ ] Track dirty and newly-loaded chunks per tracked map
-- [ ] Rescan only pixels covering dirty chunks
-- [ ] Confirm a stationary player, and one crossing fully-mapped terrain, cost ≈ 0
+**Correction recorded in DESIGN.md §5.6:** one `MapItem.update` costs **4,096** column
+samples, not 65,536 — the strip loop processes one x-strip in sixteen, so 65,536 is the
+cost of a full 16-step sweep. The conclusion is unchanged; the waste is that the sweep
+repeats forever over unchanged ground.
 
-### Testable
+### Verified
 
-- [ ] Dirty-set arithmetic: chunk → affected pixel range, at every scale
-- [ ] A no-change tick queues zero pixel work
+- [x] Mixin applies at runtime — `./verify-boot.sh` boots a headless server and checks
+      for `Done (`. Mixins fail at *runtime*, so a compile is not evidence.
+- [ ] Stationary player and mapped-terrain crossing cost ≈ 0 — **needs the gate below**
 
-### ⏸ PLAYTEST GATE 1 — *Profile*
+### ⏸ PLAYTEST GATE 1 — *Profile* — **NEEDS A HUMAN**
 
-Spark profile before and after. **Do not proceed to layers until the numbers are in.**
-Answers D2 and decides whether §5.3's sample-density cap is needed.
+Decides whether §5.3's sample-density cap is needed at all, so it gates layer work.
 
-- [ ] Server tick cost, walking new terrain
-- [ ] Server tick cost, crossing mapped terrain
-- [ ] `map_updates_per_tick` headroom — can it be raised from 1?
+**How to run it** (no profiler required):
+
+1. `./verify-boot.sh` to confirm the build boots, then `./gradlew :neoforge:runClient`
+2. Set `debug_map_updates = true` in `map_atlases_recut-common.toml`
+3. Craft an atlas, feed it paper, and:
+   - [ ] **Walk new terrain** for a minute. Expect a low skip percentage.
+   - [ ] **Stand still** in mapped terrain for a minute. Expect skip near 100%.
+   - [ ] **Cross already-mapped ground** for a minute. Expect a high skip percentage.
+   - [ ] **Break and place blocks** while standing still — skips should drop, proving the
+         chunk stamp actually invalidates rather than the map simply going quiet.
+4. Read the `map scans in last 30s:` lines out of the log.
+
+- [ ] Then try raising `map_updates_per_tick` above 1 and see whether it still feels smooth.
 
 ### 2.3 Layered atlas
 
