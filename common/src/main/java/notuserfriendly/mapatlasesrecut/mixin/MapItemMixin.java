@@ -63,6 +63,14 @@ public class MapItemMixin {
 
         //alter range optionally
         double rangeMult = MapAtlasesConfig.mapRange.get();
+
+        // A scan reaches the same 128 blocks at every scale, so a 2048 block coarse cell fills
+        // no faster than a 128 block fine one. Reach further on coarse layers, capped at
+        // 2^scale because beyond that a single scan would cover more than the whole cell.
+        // Fine layers are untouched: min(1 << 0, n) is 1.
+        int layerBoost = Math.min(1 << data.scale, MapAtlasesConfig.coarseLayerRange.get());
+        rangeMult *= layerBoost;
+
         if (rangeMult != 1d) {
             range.set((int) (range.get() * rangeMult));
         }

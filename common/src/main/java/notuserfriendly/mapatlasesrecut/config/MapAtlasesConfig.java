@@ -89,6 +89,8 @@ public class MapAtlasesConfig {
                     .define("map_layer_scale_" + sc, sc == 0 || sc == 4);
         }
         maintainLayer = maintain;
+        coarseLayerRange = builder.comment("How much further a coarse layer scans than a fine one, as a multiplier capped at 2^scale. A scan reaches 128 blocks by default at every scale, so a 2048 block coarse cell fills no faster than a 128 block fine one. Real reach is limited by loaded chunks: nothing paints where the server has not loaded terrain, so this cannot exceed your view distance however high it is set")
+                .define("coarse_layer_range_multiplier", 4, 1, 16);
         limitToTwoLayers = builder.comment("Keep at most two layers, the finest and coarsest of those enabled above, so an atlas stays a detail layer over a base. Turn off to maintain every enabled layer")
                 .define("limit_to_two_layers", true);
         paintedRefreshTicks = builder.comment("How often a map whose picture is already complete is refreshed anyway, in ticks. Changes within 48 blocks always update immediately regardless; this only bounds how long a distant change can go unnoticed. Higher saves more work")
@@ -126,6 +128,7 @@ public class MapAtlasesConfig {
     public static final Supplier<Integer> paintedRefreshTicks;
     public static final Supplier<Boolean>[] maintainLayer;
     public static final Supplier<Boolean> limitToTwoLayers;
+    public static final Supplier<Integer> coarseLayerRange;
     public static final Supplier<Double> mapRange;
     public static final Supplier<ActivationLocation> activationLocation;
 

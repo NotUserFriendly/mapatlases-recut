@@ -231,7 +231,24 @@ interval, and anything within 48 blocks still updates immediately.
 - [x] Per-scale toggles `draw_layer_scale_0..4`, plus `draw_layer_overlay` reserved (`12c55e3`).
 - [x] Separator layer chosen by zoom, and empty cells gridded (`de10d75`).
 - [x] Crafted scale removed, so any layer set is legal.
-- [ ] Scale-dependent `map_range_multiplier` — **see the note below before building this.**
+- [x] **Scale-dependent scan range** (`coarse_layer_range_multiplier`, default 4, capped at
+      `2^scale` so fine layers are untouched). Coarse layers now reach further per scan.
+- [ ] ~~Per-pixel sample density cap~~ — **not built, and the reason matters.** It exists only
+      to pay for a large range increase, and the range cannot grow far enough to need paying
+      for: **reach is capped by loaded chunks.** `MapItemMixin` substitutes a dummy chunk when
+      `hasChunk` fails and vanilla skips empty ones, so nothing paints past the server's view
+      distance.
+
+      | render distance | loaded radius | scan reach | useful multiplier |
+      |---|---|---|---|
+      | 8 | 128b | 128b | **1.0x** |
+      | 12 (tested) | 192b | 128b | **1.5x** |
+      | 16 | 256b | 128b | 2.0x |
+      | 32 | 512b | 128b | 4.0x |
+
+      So on a default setup the multiplier saturates around 1.5x, and the 16x saving the cap
+      would provide has nothing to spend itself on. Building it first would have been an
+      optimisation for a scan that cannot extend.
 - [ ] Explorer/treasure maps composite free-form as their own quads (§5.5).
 - [ ] Toggles as UI checkboxes with an eye symbol, rather than config lines (D34 warning too).
 
