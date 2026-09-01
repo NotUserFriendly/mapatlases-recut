@@ -47,6 +47,12 @@ public class SelectedSlices {
         //copy map,remove and assign new comp
         Map<ResourceKey<Level>, Slice> newMap = new HashMap<>(this.map);
         newMap.remove(location);
+        if (newMap.isEmpty()) {
+            // the component is not one of the item's defaults, so storing an empty one leaves
+            // a patch that a never-selected atlas does not have, and the two stop stacking
+            stack.remove(MapAtlasesMod.SELECTED_SLICES.get());
+            return;
+        }
         SelectedSlices newSlice = new SelectedSlices(newMap);
         stack.set(MapAtlasesMod.SELECTED_SLICES.get(), newSlice);
     }
