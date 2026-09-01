@@ -170,6 +170,18 @@ repeatable loop so the same ground could be flown twice.
 Peak: 200 scans avoided against 9 performed in one window, roughly **819,000 column
 samples avoided per 10s**.
 
+**Reading the numbers later:** `considered` is polls x maps-in-view, and the poll rate is the
+speed-driven accumulator, so it doubles as a movement proxy. Every parked window reads
+exactly 180 (20 polls x 9 maps at 0.1/tick); the 96% window read 1881, about ten times that,
+so it was recorded in motion rather than after parking.
+
+**Skip rate degrades with speed.** The fastest window (1.8 polls/tick) skipped 52% while
+moderate ones skipped 83-96%. Faster travel crosses more pixel boundaries per second and
+sweeps the 48 block window over more chunks. Noisy, since paintedness varies around a loop,
+but directional. **Worth remembering for Pillar II:** the Thousand League Boots at 80 m/s
+will see the least benefit of anything, so the feature that makes travel fast is also the one
+that makes map upkeep expensive.
+
 **The controlled loop mattered.** An earlier uncontrolled flight over the same edge showed
 only ~5% skipped and nearly led to the wrong conclusion, because that ground had not
 actually been painted yet. Same speeds, same path; the only difference was whether the
