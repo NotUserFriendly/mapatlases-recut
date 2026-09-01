@@ -249,6 +249,38 @@ interval, and anything within 48 blocks still updates immediately.
       So on a default setup the multiplier saturates around 1.5x, and the 16x saving the cap
       would provide has nothing to spend itself on. Building it first would have been an
       optimisation for a scan that cannot extend.
+
+**Measured 2026-09-01: can we reach past the loaded set?** Vanilla exposes the chunk statuses
+Distant Horizons uses (`NOISE`, `SURFACE`, `CARVERS`, `FEATURES`, then `FULL`), and a map needs
+far less than `FULL`. Five chunks per status, main thread:
+
+| status | generated fresh | already on disk |
+|---|---|---|
+| SURFACE | **50.3 ms** | **1.2 ms** |
+| CARVERS | 87.9 ms | 1.1 ms |
+| FEATURES | 102.5 ms | 1.2 ms |
+| FULL | 128.9 ms | 5.4 ms |
+
+- **Generating fresh terrain is not viable.** A tick is 50 ms, so one `SURFACE` chunk is a
+  whole tick; a coarse cell is 16,384 chunks, or 13.6 minutes of server thread.
+  `ServerChunkCache.getChunk` also bounces to the main thread, so it cannot be hidden in the
+  background without reimplementing generation as Distant Horizons does.
+- **Reading generated chunks is viable.** At 1.2 ms a 5 ms budget is roughly 80 chunks a
+  second, filling the 192 to 1024 block band around a player in under a minute.
+
+**So the coarse layer can map ground already generated but never walked, and cannot see past
+the frontier.** How much that is worth depends entirely on how much such ground exists:
+
+| situation | generated but unmapped |
+|---|---|
+| render distance 12 (default) | almost none: generated 192b, mapped ~200b |
+| render distance 32 | a 200 to 512 block band, substantial |
+| pregenerated server | very large |
+
+**Two caveats before building.** Reading through the chunk cache loads those chunks into it,
+so thousands would balloon memory; extraction wants to release them promptly, or read the
+region files directly. And "already generated" means the *server's* view, so on a dedicated
+server the answer follows its view distance, not the player's. → **D36.**
 - [ ] Explorer/treasure maps composite free-form as their own quads (§5.5).
 - [ ] Toggles as UI checkboxes with an eye symbol, rather than config lines (D34 warning too).
 
