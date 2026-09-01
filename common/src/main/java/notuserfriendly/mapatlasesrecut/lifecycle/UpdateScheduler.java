@@ -86,8 +86,15 @@ public abstract class UpdateScheduler {
         if (now - lastProbeTick < REPORT_PERIOD) return;
         lastProbeTick = now;
         boolean ceiling = player.level().dimensionType().hasCeiling();
-        MapAtlasesMod.LOGGER.info("PROBE player=({}, {}) maps in view={}",
-                (int) player.getX(), (int) player.getZ(), visible.size());
+        long gt = player.level().getGameTime();
+        long oldestScan = visible.stream().mapToLong(h -> state(h).lastScan).min().orElse(0);
+        var rep = ChunkChangeIndex.report(player.level(), player.getX(), player.getZ(), oldestScan);
+        MapAtlasesMod.LOGGER.info(
+                "PROBE gameTime={} player=({}, {}) maps={} | chunks loaded={} changed-since-oldest-scan={} "
+                        + "newestChange={} (age {} ticks) at chunk ({}, {}) = block ({}, {})",
+                gt, (int) player.getX(), (int) player.getZ(), visible.size(),
+                rep.loaded(), rep.changedSince(), rep.latest(), gt - rep.latest(),
+                rep.chunkX(), rep.chunkZ(), rep.chunkX() * 16, rep.chunkZ() * 16);
         for (MapDataHolder h : visible) {
             ScanState st = state(h);
             var d = ScanRegion.diagnose(player, h.data, ceiling);
@@ -153,16 +160,29 @@ public abstract class UpdateScheduler {
         return needed;
     }
 
+    /**
+     * Interval a fully painted map still refreshes at, so distant changes are not lost, only
+     * delayed. Everything the player can see themselves change is caught by NEAR_RADIUS.
+     */
+    private static final int PAINTED_INTERVAL = 60;
+
     private boolean computeNeedsUpdate(ServerPlayer player, MapDataHolder holder) {
         if (!MapAtlasesConfig.skipUnchangedMaps.get()) return true;
         ScanState state = state(holder);
         if (state.lastScan < 0) return true;
-        if (!state.regionPainted(player, holder)) return true;
+        long now = player.level().getGameTime();
+
+        // anything the player is close enough to have done themselves scans at once
         if (latestNearbyChange < 0) {
             latestNearbyChange = ChunkChangeIndex.latestChangeNear(
-                    player.level(), player.getX(), player.getZ());
+                    player.level(), player.getX(), player.getZ(), ChunkChangeIndex.NEAR_RADIUS);
         }
-        return state.lastScan <= latestNearbyChange;
+        if (state.lastScan <= latestNearbyChange) return true;
+
+        // still filling in: never throttle a map that is actually gaining pixels
+        if (!state.regionPainted(player, holder)) return true;
+
+        return now - state.lastScan >= PAINTED_INTERVAL;
     }
 
     protected ScanState state(MapDataHolder holder) {
