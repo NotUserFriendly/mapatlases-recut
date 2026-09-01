@@ -85,10 +85,17 @@ should be a supported configuration, not an accident.
 
 - [ ] **First commit: Paper Block (T1.4).** Registration, recipe, loot table, shears drop.
       Deliberately trivial — it proves the toolchain end to end and risks nothing.
-- [ ] Cut three branches from `upstream/1.21.1` (Fabric intact) and open PRs:
-  - [ ] **PR A — `EmptyMaps` merge duplication (T0.2).** Item dupe; smallest and fastest to merge.
-  - [ ] **PR B — duplicate map entries (T0.1).**
-  - [ ] **PR C — atlas stacking (T0.3).**
+- [x] Cut three branches from `upstream/1.21.1` (Fabric intact) and open PRs:
+  - [x] **PR A — `EmptyMaps` merge duplication (T0.2)** → **#297 MERGED**, unchanged
+  - [x] **PR B — duplicate map entries (T0.1)** → **#298 MERGED**, unchanged, closed issue #250
+  - [x] **PR C — atlas stacking (T0.3)** → **#299 open**
+
+**Worth offering on #299:** we have since found the cause that actually bites on a vanilla
+server, and it is not the ids ordering that PR fixes. `EmptyMaps` holding `{VANILLA: 0}`
+against a fresh `{}`, and `MapCollection` holding `{VANILLA: []}`, both block stacking and
+both arise in ordinary play (`528ac11`). PR C's fix is still real, but a maintainer weighing
+whether it fixes anything visible deserves to know about the other two. Either a comment on
+the PR or a fourth PR.
 - [ ] Strip `fabric/` from the fork branch **only after** the PRs are open.
 
 ### Testable now (pure JUnit, no game)
