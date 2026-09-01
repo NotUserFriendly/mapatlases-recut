@@ -21,8 +21,11 @@ import org.joml.Matrix4f;
 import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
 import notuserfriendly.mapatlasesrecut.utils.MapType;
 
+import notuserfriendly.mapatlasesrecut.map_collection.MapCollection;
+
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -102,42 +105,49 @@ public abstract class AbstractAtlasDisplay {
         if (rotatesWithPlayer) {
             poseStack.mulPose(Axis.ZP.rotationDegrees(180 - player.getYRot()));
         }
-        poseStack.translate(-mapCenterOffsetX / scaleIndex, -mapCenterOffsetZ / scaleIndex, 0);
 
-        //grid side len
-        double sideLength = mapBlocksSize * zoomScale;
-        //radius of widget
-        int radius = (int) (mapBlocksSize * atlasesCount * 0.71f); // radius using hyp
+        // ---- layered draw -------------------------------------------------------------
+        // The pose is in reference map-pixel units: one unit is (1 << refScale) blocks. A
+        // layer at scale s therefore draws its 128 unit quad scaled by 2^(s - ref), and is
+        // positioned from its world centre rather than from a grid index, so every layer
+        // lands on the same world coordinates regardless of cell size.
+        byte ref = refScale();
+        double refBlocksPerPixel = 1 << ref;
 
-        // Calculate the distance from the circle's center to the center of each grid square
-        int o = Mth.ceil(zoomLevelDim);
-        double maxDist = rotatesWithPlayer ?
-                Mth.square(radius + (sideLength * 0.71)) :
-                (o + 1) * sideLength * 0.5;
+        int layerIndex = 0;
+        for (byte layer : layersCoarsestFirst()) {
+            float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
+            int layerBlocks = MAP_DIMENSION << layer;
+            ColumnPos lc = type.getCenter(intXCenter, intZCenter, layerBlocks);
 
-        for (int i = o; i >= -o; i--) {
-            for (int j = o; j >= -o; j--) {
-                double gridCenterI = i * sideLength;
-                double gridCenterJ = j * sideLength;
+            // coarse cells cover more ground, so fewer are needed to fill the same widget
+            int span = Mth.ceil(zoomLevelDim / factor) + 1;
+            double halfSpanBlocks = (zoomLevelDim * 0.5 + 1) * (MAP_DIMENSION << ref);
 
-                boolean shouldDraw;
-                // Calculate the distance between the grid square center and the circle's center
-                if (rotatesWithPlayer) {
-                    double distance = Mth.lengthSquared(
-                            gridCenterI - mapCenterOffsetZ * zoomScale,
-                            gridCenterJ - mapCenterOffsetX * zoomScale);
-                    //circle dist
-                    shouldDraw = (distance <= maxDist);
-                } else {
-                    //square dist
-                    shouldDraw = Math.abs(gridCenterI - mapCenterOffsetZ * zoomScale) < maxDist &&
-                            Math.abs(gridCenterJ - mapCenterOffsetX * zoomScale) < maxDist;
-                }
-                if (shouldDraw) {
-                    getAndDrawMap(player, poseStack, centerMapX, centerMapZ, vcp, outlineHack, i, j, light, selectedKey);
+            for (int i = span; i >= -span; i--) {
+                for (int j = span; j >= -span; j--) {
+                    int cx = lc.x() + j * layerBlocks;
+                    int cz = lc.z() + i * layerBlocks;
+
+                    // cull by world distance so the test is layer independent
+                    double halfCell = layerBlocks * 0.5;
+                    if (Math.abs(cx - currentXCenter) - halfCell > halfSpanBlocks) continue;
+                    if (Math.abs(cz - currentZCenter) - halfCell > halfSpanBlocks) continue;
+
+                    MapDataHolder state = getMapAtLayer(cx, cz, layer);
+                    if (state == null) continue;
+
+                    boolean drawPlayerIcons = !this.drawBigPlayerMarker
+                            && state.data.dimension.equals(player.level().dimension());
+                    double px = (cx - currentXCenter) / refBlocksPerPixel;
+                    double pz = (cz - currentZCenter) / refBlocksPerPixel;
+                    drawMapAt(player, poseStack, vcp, outlineHack, px, pz, factor, layerIndex,
+                            state, drawPlayerIcons, light, selectedKey);
                 }
             }
+            layerIndex++;
         }
+
         vcp.endBatch();
 
         if (showBorders) {
@@ -191,44 +201,48 @@ public abstract class AbstractAtlasDisplay {
         graphics.enableScissor(x, y, x1, y1);
     }
 
-    private void getAndDrawMap(Player player, PoseStack poseStack, int centerMapX, int centerMapZ,
-                               MultiBufferSource.BufferSource vcp,
-                               Pair<List<Matrix4f>, List<Matrix4f>> outlineHack, int i, int j, int light,
-                               @Nullable MapItemSavedData selectedData) {
-        int reqXCenter = centerMapX + (j * mapBlocksSize);
-        int reqZCenter = centerMapZ + (i * mapBlocksSize);
-        MapDataHolder state = getMapWithCenter(reqXCenter, reqZCenter);
-        if (state != null) {
-            MapItemSavedData data = state.data;
-            boolean drawPlayerIcons = !this.drawBigPlayerMarker && data.dimension.equals(player.level().dimension());
-            // drawPlayerIcons = drawPlayerIcons && originalCenterMap == state.getSecond();
-            this.drawMap(player, poseStack, vcp, outlineHack, i, j, state, drawPlayerIcons, light, selectedData);
-        }
+    /** The map covering this world centre at exactly this layer, or null. */
+    @Nullable
+    public abstract MapDataHolder getMapAtLayer(int centerX, int centerZ, byte scale);
+
+    /** Layers to composite, coarsest first, so finer detail draws over the base. */
+    public abstract Iterable<Byte> layersCoarsestFirst();
+
+    /** getScales() is ascending, and layers must draw coarsest first so detail lands on top. */
+    protected static Iterable<Byte> coarsestFirst(MapCollection maps) {
+        List<Byte> ordered = new ArrayList<>(maps.getScales());
+        Collections.reverse(ordered);
+        return ordered;
     }
 
-    @Nullable
-    public abstract MapDataHolder getMapWithCenter(int centerX, int centerZ);
+    /** Scale the transform is calibrated to: the layer whose pixels map 1:1 to pose units. */
+    protected byte refScale() {
+        return mapWherePlayerIs == null ? 0 : mapWherePlayerIs.data.scale;
+    }
 
     public void setFollowingPlayer(boolean followingPlayer) {
         this.followingPlayer = followingPlayer;
     }
 
-    private void drawMap(
+    private void drawMapAt(
             Player player,
             PoseStack poseStack,
             MultiBufferSource.BufferSource vcp,
             Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
-            int ix, int iy,
+            double px, double pz, float factor, int layerIndex,
             MapDataHolder state,
             boolean drawPlayerIcons,
             int light,
             @Nullable MapItemSavedData selectedData
     ) {
-        // Draw the map
-        int curMapComponentX = (MAP_DIMENSION * iy) - MAP_DIMENSION / 2;
-        int curMapComponentY = (MAP_DIMENSION * ix) - MAP_DIMENSION / 2;
         poseStack.pushPose();
-        poseStack.translate(curMapComponentX, curMapComponentY, 0.0);
+        // half a quad back to the corner, then scale the 128 unit quad to this layer's size.
+        // The small z step keeps coarse layers behind finer ones: map textures differ per
+        // map, so they batch separately and draw order alone cannot be relied on.
+        poseStack.translate(px - MAP_DIMENSION * factor / 2.0,
+                pz - MAP_DIMENSION * factor / 2.0,
+                layerIndex * 0.5);
+        poseStack.scale(factor, factor, 1);
 
         // Remove the off-map player icons temporarily during render
         MapItemSavedData data = state.data;

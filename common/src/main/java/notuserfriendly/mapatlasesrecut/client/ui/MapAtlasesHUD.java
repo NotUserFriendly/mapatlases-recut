@@ -69,9 +69,13 @@ public class MapAtlasesHUD extends AbstractAtlasDisplay {
 
     @Nullable
     @Override
-    public MapDataHolder getMapWithCenter(int centerX, int centerZ) {
-        Slice slice = currentMapKey.slice;
-        return currentMaps.select(centerX, centerZ, slice);
+    public MapDataHolder getMapAtLayer(int centerX, int centerZ, byte scale) {
+        return currentMaps.selectAtScale(centerX, centerZ, currentMapKey.slice, scale);
+    }
+
+    @Override
+    public Iterable<Byte> layersCoarsestFirst() {
+        return coarsestFirst(currentMaps);
     }
 
     @Override

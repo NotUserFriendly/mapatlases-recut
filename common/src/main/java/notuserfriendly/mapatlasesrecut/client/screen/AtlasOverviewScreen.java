@@ -499,13 +499,18 @@ public class AtlasOverviewScreen extends Screen {
     }
 
     @Nullable
-    protected MapDataHolder findMapWithCenter(int reqXCenter, int reqZCenter) {
-        return currentMaps.select(reqXCenter, reqZCenter, selectedSlice);
+    protected MapDataHolder findMapWithCenter(int reqXCenter, int reqZCenter, byte scale) {
+        return currentMaps.selectAtScale(reqXCenter, reqZCenter, selectedSlice, scale);
+    }
+
+    public MapCollection getCurrentMaps() {
+        return currentMaps;
     }
 
     @Nullable
     protected MapDataHolder findMapContaining(int x, int z) {
-        return currentMaps.select(MapGridKey.at(currentMaps.getScale(), selectedSlice, x, z));
+        // most detailed layer covering the point, so hovering reports what is drawn
+        return currentMaps.selectBest(x, z, selectedSlice);
     }
 
     // ── Dimension & slice selection ───────────────────────────────────────

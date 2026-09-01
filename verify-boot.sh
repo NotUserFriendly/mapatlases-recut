@@ -33,7 +33,9 @@ status=timeout
 while [ $SECONDS -lt $deadline ]; do
     if [ -f "$LOG" ]; then
         if grep -q 'Done (' "$LOG" 2>/dev/null; then status=ok; break; fi
-        if grep -qE 'Mixin (apply|prepare) failed|MixinApplyError|Failed to load|Caused by' "$LOG" 2>/dev/null; then
+        # severity matters: Moonlight logs benign "Failed to load ..." lines at INFO for
+        # absent mods, which a bare text match reads as a crash
+        if grep -qE '\[(ERROR|FATAL)\].*([Mm]ixin|Failed to compute)|MixinApplyError|MixinTransformerError|Mixin (apply|prepare) failed' "$LOG" 2>/dev/null; then
             status=mixin; break
         fi
     fi
@@ -53,7 +55,8 @@ case "$status" in
     echo "--- mixin warnings (twilightforest ones are expected, it is not installed) ---"
     grep -E '\[mixin/\]: (Error|Warn)' "$LOG" | sed 's/^/    /' | head -10 || echo "    none"
     ;;
-  mixin)  echo "==> MIXIN FAILURE"; grep -nE 'Mixin|Caused by' "$LOG" | head -20; exit 1 ;;
+  mixin)  echo "==> MIXIN FAILURE"
+          grep -nE '\[(ERROR|FATAL)\]|MixinApplyError|MixinTransformerError' "$LOG" | head -20; exit 1 ;;
   died)   echo "==> SERVER DIED BEFORE READY"; tail -30 "$LOG" 2>/dev/null; exit 1 ;;
   *)      echo "==> TIMED OUT after ${TIMEOUT}s"; tail -20 "$LOG" 2>/dev/null; exit 1 ;;
 esac

@@ -164,8 +164,13 @@ public class MapWidget extends AbstractAtlasDisplay implements Renderable, GuiEv
     }
 
     @Override
-    public MapDataHolder getMapWithCenter(int centerX, int centerZ) {
-        return mapScreen.findMapWithCenter(centerX, centerZ);
+    public MapDataHolder getMapAtLayer(int centerX, int centerZ, byte scale) {
+        return mapScreen.findMapWithCenter(centerX, centerZ, scale);
+    }
+
+    @Override
+    public Iterable<Byte> layersCoarsestFirst() {
+        return coarsestFirst(mapScreen.getCurrentMaps());
     }
 
     private void renderPositionText(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
