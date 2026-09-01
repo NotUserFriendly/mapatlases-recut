@@ -554,6 +554,64 @@ See §5. This is the gate for T3.1 and T3.2.
 wants §5 settled first. It also needs a screen — the first genuinely new UI in the
 fork, and the piece the Excerpt would have refused to build as a mixin author.
 
+### T3.1a — Syncing: the part QuickNotes actually asked for
+
+*Operator's request, 2026-09-01: a block that stays at a shared base, that a returning
+explorer right-clicks to dump their atlas into and anyone else right-clicks to absorb from.*
+
+**This is the Atlas Cutter's original purpose, recovered.** QuickNotes described exactly
+this — *"return to base after exploring, upload all your maps into a table, and the next guy
+can come, supply paper, and pull out a fully up to date map"* — and the Cutter as designed
+above has since accreted storage, dedupe, a paper sink, curse removal and individual
+extraction around it. Those are all workbench jobs. The sync is not.
+
+**Recommend one block, two gestures.** They operate on the same stored `MapCollection`, and
+two blocks with separate stores invites "which one did I dump into?".
+
+| Gesture | Result |
+|---|---|
+| Right-click **holding an atlas** | Sync, no screen, no item shuffling |
+| Right-click **empty-handed** | Open the Cutter screen (dedupe, extraction, paper) |
+
+### One gesture, both directions
+
+A sync does both halves at once, so there is no mode to choose:
+
+- **The board takes everything from your atlas, free.** You are donating knowledge.
+- **Your atlas takes from the board, paying paper per cell**, nearest-first, until your
+  empty-map budget runs out.
+
+**Paying paper on the way in is what protects T1.1.** *The board sells you the walking, not
+the paper.* Absorbing a continent still costs what mapping it would have cost; you are just
+spared the journey. Without that rule the board is an infinite free-map dispenser and the
+whole economy collapses.
+
+**Nearest-first matters** when the budget runs short: you leave with the cells around you,
+which is what you want when heading out, rather than an arbitrary slice of someone else's
+expedition.
+
+### Why this is the strongest cooperative mechanic in Pillar I
+
+**It makes exploration a job you can do for other people.** One player walks; everyone
+benefits; the walker is not diminished by sharing. Nothing else in the cartography half
+creates a reason for players to specialise, and it needs no new systems — just a block
+holding a `MapCollection` and the dedupe logic T0.1 already provides.
+
+### Open
+
+- **Siting tension.** A shared board wants to be in the entrance hall; a workbench wants to
+  be in the map room. One block cannot be both. Options: live with it, allow several boards
+  and accept they hold separate stores (confusing), or add a cheap terminal block that links
+  to a Cutter later. Recommend living with it until it chafes. → **D28.**
+- **Access control.** Anyone can absorb. That is probably right for a shared base and
+  probably wrong on a public server. A vanilla lock component is the cheap answer. → **D29.**
+- **Name.** "Survey Board" reads right for the mundane cartography register; the leyline
+  vocabulary belongs to Pillar II. → **D30.**
+
+**Under layers (§5)** the board's collection is multi-scale like any other, so it accumulates
+every layer anyone contributes. A **Leyline Atlas cannot sync** — it is frozen and
+single-scale by definition, which is consistent and needs no special case.
+
 **T3.2 — Dissolve an atlas. *Retained — it is the uninstall path.*** T3.1's "dump"
 covers the in-game ergonomics, so dissolve is not needed as a convenience. It is
 needed as an **exit**: if a player uninstalls the mod, every map they own is trapped
@@ -2784,6 +2842,14 @@ so a rotational or thermal converter is a new device rather than a save migratio
 `#map_atlases_recut:inscribable` tag defaulting to stone-ish, so packs can adjust); does
 the inscribed block store and restore the original `BlockState` (recommend yes — it is what
 makes modded stone work); do naturally-generated leylines use the same inscribed-block form.
+
+**D28 — Board siting.** One block cannot be both entrance-hall drop box and map-room
+workbench. Live with it, or add a linked terminal later.
+
+**D29 — Board access control.** Anyone can absorb; fine for a shared base, wrong for a
+public server. A vanilla lock component is the cheap answer.
+
+**D30 — Name the syncing block.** "Survey Board" fits the cartography register.
 
 **D25 — Name the paper-thrift enchantment.** Something cartographic rather than
 mechanical. It is our own enchantment with its own `supported_items`, so weight, level

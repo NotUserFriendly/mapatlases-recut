@@ -212,6 +212,11 @@ Data model first; it is smaller than the Excerpt claimed (§5.2).
 ### 2.5 Atlas Cutter, dissolve, absorption
 
 - [ ] Atlas Cutter block + screen: bulk dump, bulk load, individual withdrawal, dedupe
+- [ ] **Sync gesture (T3.1a)** — right-click holding an atlas syncs both ways with no
+      screen: the block takes everything free, your atlas takes what its paper affords,
+      nearest-first. Right-click empty-handed opens the workbench screen. This is the
+      cooperative core of Pillar I, so treat it as the primary interaction rather than a
+      convenience on top of the screen.
 - [ ] Universal paper sink — datapack table of item → (paper, byproducts); book returns leather
 - [ ] Curse removal (it cannot reach a Binding-locked atlas — that asymmetry is intended)
 - [ ] **Dissolve** (T3.2) — the uninstall path. Complete and lossless; may be slow and gated
