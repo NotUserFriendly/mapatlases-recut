@@ -201,8 +201,10 @@ Data model first; it is smaller than the Excerpt claimed (§5.2).
       Everything below changes shape depending on this answer, so settle it before starting.
   - [ ] Draw from inventory on demand, smallest denomination first, breaking down one larger
         unit at a time so change stays bounded
-  - [ ] Paper count on the minimap HUD, plus a one-shot nudge when a cell fails for want of
-        paper — forgetting is a UI problem
+  - [ ] **Red outline on the minimap when no paper is found** — glanceable, persistent, and
+        cheap; forgetting is a UI problem and this is the UI answer
+  - [ ] Optional: draw from sub-inventories where a mod provides them (Sophisticated
+        Backpacks first), behind `isLoaded`
   - [ ] Rehome the loan (T1.3) as its own small component
 - [ ] Paper Sheaf ×9 — **both** entry points (cartography table *and* `MapAtlasesAddRecipe`)
 - [ ] Paper Block as refuel source, 72 paper

@@ -500,14 +500,24 @@ component also means atlases stack far more readily in general.
 - `accept_paper_for_empty_maps` becomes the behaviour rather than a toggle.
 
 **The cost the operator identified: you carry paper *and* compacted paper.** Realistic, but
-it invites forgetting. Two cheap mitigations:
+it invites forgetting. Mitigations, cheapest first:
 
 - **Consume smallest denomination first, and break down exactly one larger unit when nothing
   small remains.** Change is then bounded to under one block's worth rather than accumulating
   eight sheaves at once.
-- **Show the paper count on the minimap HUD**, the way arrows show on a bow. Forgetting is a
-  UI problem, and this is the UI answer. A one-shot nudge when a cell fails for want of paper
-  covers the rest.
+- **A red outline on the minimap when no paper is found.** *(Operator's suggestion, and the
+  right one.)* Persistent, glanceable, impossible to miss, and it costs one border colour on
+  a HUD element already being drawn. Better than a chat nudge, which scrolls away exactly
+  when you stop paying attention.
+- **Draw from sub-inventories where a mod provides them**, Sophisticated Backpacks first.
+  A player who keeps their paper in a backpack should not be told they have none. Optional
+  integration behind `isLoaded`, with the vanilla path unchanged.
+- **A discrete paper-holding item** was also considered. Rejected: it reintroduces the
+  reload chore this change exists to remove, and it is a second place for paper to hide.
+  The backpack integration gets the same convenience without a new item.
+
+*(Note the vanilla player still carries loose paper either way. The backpack integration
+helps the modded case; the red outline is what saves the vanilla one.)*
 
 **What it breaks, and what that costs:**
 
