@@ -43,7 +43,12 @@ public class MapCollection {
     //available dimensions and slices
     protected final Map<ResourceKey<Level>, Map<MapType, TreeSet<Integer>>> mapHeights = new HashMap<>();
     protected final int size;
-    protected byte scale = 0;
+    /**
+     * Scales held, ascending, so iteration runs finest to coarsest. Not serialised: it is
+     * rebuilt from the map data during {@link #initialize}, which is why multi-scale support
+     * needed no change to the codec.
+     */
+    protected final TreeSet<Byte> scales = new TreeSet<>();
     // list of ids that have not been received yet
     protected final Set<Pair<MapType, MapId>> notSyncedIds = new HashSet<>();
 
@@ -100,9 +105,26 @@ public class MapCollection {
         return maps.isEmpty();
     }
 
+    /**
+     * Finest scale held, or 0 for an empty collection.
+     * <p>
+     * Retained for the many callers that predate layers and assume one scale per atlas.
+     * Anything choosing a map to draw or to update should use {@link #selectBest} or iterate
+     * {@link #getScales()} instead.
+     */
     public byte getScale() {
         assertInitialized();
-        return scale;
+        return scales.isEmpty() ? 0 : scales.first();
+    }
+
+    /** Scales held, finest first. */
+    public Set<Byte> getScales() {
+        assertInitialized();
+        return Collections.unmodifiableSet(scales);
+    }
+
+    public boolean isLayered() {
+        return scales.size() > 1;
     }
 
     public Collection<MapType> getAvailableTypes(ResourceKey<Level> dimension) {
@@ -165,7 +187,30 @@ public class MapCollection {
 
     @Nullable
     public MapDataHolder select(int x, int z, Slice slice) {
-        return select(MapGridKey.at(scale, slice, x, z));
+        return select(MapGridKey.at(getScale(), slice, x, z));
+    }
+
+    /**
+     * The most detailed map covering this point, or null if no layer does.
+     * <p>
+     * Walks finest to coarsest and takes the first hit, which is what makes a coarse base
+     * layer show through only where no finer layer has been drawn.
+     */
+    @Nullable
+    public MapDataHolder selectBest(double x, double z, Slice slice) {
+        assertInitialized();
+        for (byte s : scales) {
+            MapDataHolder found = maps.get(MapGridKey.at(s, slice, x, z));
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    /** The map covering this point at exactly this scale, ignoring other layers. */
+    @Nullable
+    public MapDataHolder selectAtScale(double x, double z, Slice slice, byte scale) {
+        assertInitialized();
+        return maps.get(MapGridKey.at(scale, slice, x, z));
     }
 
     @Nullable
@@ -204,7 +249,6 @@ public class MapCollection {
     protected boolean populateInDataStructure(MapId intId, MapType type, Level level) {
         MapDataHolder found = MapDataHolder.find(intId, type, level);
         if (!initialized && found != null) {
-            scale = found.data.scale;
             initialized = true;
         }
 
@@ -220,7 +264,9 @@ public class MapCollection {
 
         MapItemSavedData d = found.data;
 
-        if (d != null && d.scale == scale) {
+        if (d != null) {
+            // Every scale is kept. MapGridKey carries gridWidth as part of its identity, so
+            // layers cannot collide with each other in `maps`.
             MapGridKey key = found.makeKey();
             //from now on we assume that all client maps cant have their center and data unfilled
             if (maps.containsKey(key)) {
@@ -230,6 +276,7 @@ public class MapCollection {
 
             }
             maps.put(key, found);
+            scales.add(d.scale);
             addToDimensionMap(key);
             return true;
         }
@@ -299,7 +346,6 @@ public class MapCollection {
                 accepted.add(id);
                 continue;
             }
-            if (initialized && found.data.scale != scale) continue;
             MapGridKey key = found.makeKey();
             if (maps.containsKey(key)) continue;
             if (!claimed.add(key)) continue;

@@ -27,6 +27,7 @@ import notuserfriendly.mapatlasesrecut.networking.S2CWorldHashPacket;
 import notuserfriendly.mapatlasesrecut.utils.*;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,31 +72,40 @@ public class MapAtlasesServerEvents {
         }
         Slice slice = MapAtlasItem.getSelectedSlice(atlas, dimension);
         MapCollection maps = MapAtlasItem.getMaps(atlas, level);
-        MapsNeighborhood neighborhood = MapsNeighborhood.around(player, maps.getScale(), slice);
 
+        // One neighbourhood per layer. An atlas holding a single scale behaves exactly as
+        // before; one holding several maintains every layer it has. Which layers an atlas
+        // *should* hold is policy and lives elsewhere -- this only keeps up what exists.
+        Collection<Byte> layers = maps.getScales().isEmpty()
+                ? List.of((byte) 0)
+                : List.copyOf(maps.getScales());
+
+        MapsNeighborhood finest = MapsNeighborhood.around(player, layers.iterator().next(), slice);
 
         boolean createdNewMap = false;
         List<MapDataHolder> mapsInView = new ArrayList<>();
         //create missing maps
         boolean canFillEmpty = MapAtlasesConfig.enableEmptyMapEntryAndFill.get();
-        for (var m : neighborhood.all()) {
-            MapDataHolder info = maps.select(m);
-            if (info == null && canFillEmpty) {
-                //can alter map collection
-                info = maybeCreateNewMapEntry(player, atlas, m);
-                if (info != null) {
-                    //update maps reference
-                    maps = MapAtlasItem.getMaps(atlas, level);
-                    createdNewMap = true;
+        for (byte layer : layers) {
+            MapsNeighborhood neighborhood = MapsNeighborhood.around(player, layer, slice);
+            for (var m : neighborhood.all()) {
+                MapDataHolder info = maps.select(m);
+                if (info == null && canFillEmpty) {
+                    //can alter map collection
+                    info = maybeCreateNewMapEntry(player, atlas, m);
+                    if (info != null) {
+                        //update maps reference
+                        maps = MapAtlasItem.getMaps(atlas, level);
+                        createdNewMap = true;
+                    }
                 }
+                if (info != null) mapsInView.add(info);
             }
-            if (info != null) mapsInView.add(info);
-
         }
 
         //sync the slice below and above so we can update slice automatically
         if ((level.getGameTime() + 13) % 40 == 0) {
-            sendSlicesAboveAndBelow(player, atlas, maps, neighborhood.center());
+            sendSlicesAboveAndBelow(player, atlas, maps, finest.center());
         }
 
         if (mapsInView.isEmpty()) return;
@@ -122,7 +132,7 @@ public class MapAtlasesServerEvents {
         if (lastData != null && !mapsInView.contains(lastData)) {
             MapAtlasesAccessUtils.tickHoldingPlayerAndSync(lastData, player, atlas, TriState.SET_FALSE);
         }
-        LAST_CENTER_MAP_PER_PLAYER.put(player.getUUID(), maps.select(neighborhood.center()));
+        LAST_CENTER_MAP_PER_PLAYER.put(player.getUUID(), maps.select(finest.center()));
 
         if (createdNewMap) {
             // Play the sound
@@ -177,7 +187,8 @@ public class MapAtlasesServerEvents {
                 MapAtlasesMod.LOGGER.error("Invalid height for slice: {} height: {}", slice, height.get());
             }
 
-            byte scale = maps.getScale();
+            // the key knows which layer it belongs to; the collection's finest is not it
+            byte scale = key.scale();
 
             ItemStack newMap = slice.createNewMap(destX, destZ, scale, player.level(), atlas);
             MapId newMapId = newMap.get(DataComponents.MAP_ID);

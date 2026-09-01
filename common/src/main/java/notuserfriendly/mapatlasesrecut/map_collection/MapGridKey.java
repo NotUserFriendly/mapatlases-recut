@@ -48,6 +48,11 @@ public final class MapGridKey {
         return 128 * (1 << scale);
     }
 
+    /** Inverse of {@link #getBlockWidthFromScale}: gridWidth is 128 << scale. */
+    public byte scale() {
+        return (byte) (Integer.numberOfTrailingZeros(gridWidth) - 7);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == this) return true;
