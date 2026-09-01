@@ -65,8 +65,8 @@ public class MapAtlasesConfig {
         builder.icon("minecraft:clock").push("update_logic");
         updateFashion = builder.comment("Update maps in simple round robin fashion instead of prioritizing the ones closer")
                 .define("update_priority", UpdateFashion.SMART);
-        mapUpdatePerTick = builder.comment("Max of maps to update each tick. Increase to make maps update faster")
-                .define("map_updates_per_tick", 1, 0, 100);
+        mapUpdatePerTick = builder.comment("Ceiling on map scans per tick, scaled by how fast the player is moving: standing still uses a tenth of this, travelling uses up to double. Safe to raise because scans over ground that is already painted are skipped, so a higher ceiling costs nothing when there is nothing to draw. Lower it on a busy dedicated server, especially with multithreaded_update off, where scans run on the server thread and cost multiplies by player count")
+                .define("map_updates_per_tick", 10, 0, 100);
         mapUpdateMultithreaded = builder.comment("Makes map update on different threads, speeding up the process. Disable if it causes issues. Especially on servers. Try turning on for a big performance improvement regarding map atlas update")
                 .define("multithreaded_update", UpdateType.SINGLE_PLAYER_ONLY);
         debugUpdate = builder.comment("Visually shows map updates. Makes the minimap flash on every scan")

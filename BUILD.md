@@ -139,6 +139,12 @@ the PR or a fourth PR.
 - [x] `ChunkChangeIndex` queries the 16×16 chunks around the player, computed **lazily**
       so a player filling in new territory never pays for it.
 - [x] Config off-switch `skip_unchanged_maps`, default on.
+- [x] **`map_updates_per_tick` default raised 1 → 10.** The scan *ceiling* was the real limit
+      on responsiveness, not wasted work. Skipping is what makes the higher ceiling safe: a
+      raised ceiling costs nothing where the ground is already painted, so the two changes
+      are complements rather than alternatives. **Untested on a dedicated server** — cost
+      multiplies by player count, and `multithreaded_update` defaults to single player only,
+      so server scans run on the server thread.
 - [x] Counters behind `debug_map_updates`, logging performed/skipped every 30s.
 - [ ] ~~Rescan only *pixels* covering dirty chunks~~ — deferred. Skipping whole scans is
       the large win; per-pixel granularity means rewriting the scan loop itself and only

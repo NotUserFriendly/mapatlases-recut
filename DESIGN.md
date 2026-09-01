@@ -386,7 +386,14 @@ custom-tile design are alternatives rather than complements. **Pick one.** The
 recommendation is layers, because it keeps vanilla interop, and Option 2 to make it
 fast.
 
-### 5.6a — Division of labour: cheap layer draws, vanilla layer records
+### 5.6a — Division of labour: cheap layer draws, vanilla layer records — **PARKED**
+
+*Backburnered 2026-09-01. Raising `map_updates_per_tick` from its default of 1 gave an
+immediate improvement, so the responsiveness problem was a conservative default rather than
+anything the architecture below would fix. Kept because the argument still holds if scanning
+cost becomes the binding constraint again; not worth building while a config value does the
+job.*
+
 
 *Operator, 2026-09-01, revisiting "fake it" with a specific architecture. This supersedes the
 speculation idea above, and is better than it.*
@@ -3059,7 +3066,10 @@ region the player is not standing in when vanilla's scan is viewer-centred.
 ticking a middle layer silently does nothing. That needs to be visible once the toggles become
 checkboxes, not discovered.
 
-**D35 — Validate the division of labour before building it.** Throttle vanilla map updates
+*(D35 — parked with §5.6a. `map_updates_per_tick` at 10 addresses the symptom; revisit if
+scanning cost becomes binding.)*
+
+**D35 (parked) — Validate the division of labour before building it.** Throttle vanilla map updates
 hard and observe what degrades. Only the minimap suffering confirms §5.6a, since the cheap
 layer is exactly that fix. The atlas screen suffering too means the split is less clean than
 it looks, and catch-up-on-open needs answering first.
