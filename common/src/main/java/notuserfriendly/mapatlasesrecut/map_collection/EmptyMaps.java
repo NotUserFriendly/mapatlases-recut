@@ -23,11 +23,21 @@ public class EmptyMaps {
     private final Map<MapType, Integer> maps;
     private final int size;
     private final boolean hasNonVanilla;
+    // zero counts are kept for display but must not affect identity, see equals
+    private final Map<MapType, Integer> identity;
 
     private EmptyMaps(Map<MapType, Integer> maps) {
         this.maps = maps;
         this.size = maps.values().stream().mapToInt(Integer::intValue).sum();
         this.hasNonVanilla = maps.keySet().stream().anyMatch(type -> type != MapType.VANILLA);
+        this.identity = withoutZeroes(maps);
+    }
+
+    private static Map<MapType, Integer> withoutZeroes(Map<MapType, Integer> m) {
+        if (m.values().stream().noneMatch(v -> v == 0)) return m;
+        Map<MapType, Integer> stripped = new HashMap<>(m);
+        stripped.values().removeIf(v -> v == 0);
+        return stripped;
     }
 
     public static final Codec<EmptyMaps> CODEC = Codec.simpleMap(
@@ -106,12 +116,15 @@ public class EmptyMaps {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof EmptyMaps that)) return false;
-        return Objects.equals(maps, that.maps);
+        // addAndAssigns never drops a key, so an atlas that spent its last paper holds
+        // {VANILLA: 0} where a fresh one holds {}. Those describe the same atlas, and
+        // PatchedDataComponentMap.set drops the whole patch entry once they compare equal.
+        return Objects.equals(identity, that.identity);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(maps);
+        return Objects.hashCode(identity);
     }
 
 

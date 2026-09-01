@@ -55,6 +55,9 @@ public class MapCollection {
     protected MapCollection(Map<MapType, List<MapId>> integers) {
         int s = 0;
         for (var e : integers.entrySet()) {
+            // an emptied type carries no information, and keeping the key would stop this
+            // collection comparing equal to one that never held that type
+            if (e.getValue().isEmpty()) continue;
             List<MapId> list = this.ids.computeIfAbsent(e.getKey(), k -> new ArrayList<>());
             list.addAll(e.getValue());
             // sorted so insertion order stays out of equals(), which compares these lists
