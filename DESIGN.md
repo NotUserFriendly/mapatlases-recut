@@ -523,20 +523,66 @@ See §5. This is the gate for T3.1 and T3.2.
 
 ### Tier 3 — new content
 
-**T3.1 — Atlas Cutter (block).** Stores maps in bulk, outside any atlas.
+**T3.1 — Two blocks, split by what they move.**
 
-- *Dump*: pull every map out of an atlas into the block's storage.
-- *Load*: push storage back into an atlas, consuming supplied paper.
-- The workflow it enables: explore, return to base, dump into the table; the next
-  player supplies paper and pulls out a fully up-to-date atlas. **This is the mod's
-  answer to shared-map-state in free minimaps** — a physical, in-world sync point.
-- Individual maps can be withdrawn as items; identical maps stack in storage.
-- **Dedup**: if map #2 and #302 are the same scale, type and cell, cut #302 — both the
-  item and the entry — and fold it into #2. This is T0.1's logic applied as a
-  deliberate player-facing action rather than a silent repair.
-- Anything better homed here than at the vanilla cartography table moves here.
-- **It is the universal paper sink.** Every paper-bearing item can be fed to it for
-  credit, with byproducts returned rather than destroyed:
+*Revised 2026-09-01. I had piled nine jobs onto one block. Asked to say which belong where,
+the line turns out to be clean:*
+
+> **The Atlas Surveyor moves knowledge. The Atlas Cutter moves items.**
+
+Both sort under "atlas" in a recipe search, which is the point of the naming.
+
+| | **Atlas Surveyor** | **Atlas Cutter** |
+|---|---|---|
+| Holds | a shared `MapCollection` | nothing persistent |
+| Operates on | map *entries* | map *items* |
+| Interaction | right-click, no screen | slot-and-screen workbench |
+| Lives in | the entrance hall | the map room |
+
+**The split resolves the siting tension** that made one-block-two-gestures awkward: these
+want to be in different rooms because they are different activities, and now they can be.
+
+---
+
+### T3.1a — Atlas Surveyor
+
+The shared repository. **No item slots at all.**
+
+- **Right-click holding an atlas: sync, both directions, one gesture.**
+  - The Surveyor takes everything your atlas knows, **free**. You are donating knowledge.
+  - Your atlas takes what its **empty-map pool can pay for**, nearest-first.
+- **Dedupe happens on the way in**, silently, using T0.1's logic. No player-facing button.
+- **Absorbs an upstream Map Atlases atlas** (T3.6) through the same gesture. Migration is
+  just a sync from a foreign atlas.
+- **Empty-handed: a read-only coverage view.** Optional; the loop works without it.
+- Lockable, per D29.
+
+**Paying paper on the way out is what protects T1.1.** *The Surveyor sells the walking, not
+the paper.* Absorbing a continent costs what mapping it would have; you are spared only the
+journey. Nearest-first matters when the budget runs short, so you leave with the cells
+around you rather than an arbitrary slice of someone else's expedition.
+
+**Why it needs no slots:** the budget is the atlas's own empty-map pool, the same pool
+exploration draws on. Nothing has to be handed to the block.
+
+**And that produces a workflow rather than a chore:** come home → **Cutter** to reload paper
+→ **Surveyor** to sync → head out. The two blocks chain naturally, and neither duplicates
+the other.
+
+**It is the strongest cooperative mechanic in Pillar I.** Exploration becomes a job you can
+do for other people, and the walker is not diminished by sharing. Nothing else in the
+cartography half gives players a reason to specialise.
+
+---
+
+### T3.1b — Atlas Cutter
+
+The workbench. Takes an atlas in a slot and changes it. **No storage of its own** — with the
+repository moved to the Surveyor, the Cutter has nothing to keep.
+
+- **Withdraw individual maps** as items.
+- **Universal paper sink.** Every paper-bearing item feeds an atlas's empty-map pool, with
+  byproducts returned rather than destroyed:
 
   | Input | Paper credited | Returned |
   |---|---|---|
@@ -546,73 +592,17 @@ See §5. This is the gate for T3.1 and T3.2.
   | Book | 3 | 1 leather |
   | Book and Quill | 3 | 1 leather |
 
-  Implement as a **datapack-driven map of item → (paper value, byproducts)** so packs
-  can add their own. Exclude written books and enchanted books — they carry content a
-  player would not expect to lose.
+  A **datapack-driven map of item → (paper value, byproducts)** so packs can extend it.
+  Exclude written and enchanted books; they carry content a player would not expect to lose.
+- **Curse removal** (T3.8) — unbinding and rebinding strips a curse. Still cannot reach a
+  Binding-locked atlas, since that one cannot leave the Curios slot to get here.
+- **Dissolve** (T3.2) — the uninstall path.
+- **Merge and clone atlases**, moved off the vanilla cartography table.
+- **Manual dedupe** as a visible operation, for an atlas damaged before the fix landed.
 
-*Why this is Tier 3:* the storage model must know about scales and layers, so it
-wants §5 settled first. It also needs a screen — the first genuinely new UI in the
-fork, and the piece the Excerpt would have refused to build as a mixin author.
+*Why Tier 3:* it needs a screen, the first genuinely new UI in the fork.
 
-### T3.1a — Syncing: the part QuickNotes actually asked for
-
-*Operator's request, 2026-09-01: a block that stays at a shared base, that a returning
-explorer right-clicks to dump their atlas into and anyone else right-clicks to absorb from.*
-
-**This is the Atlas Cutter's original purpose, recovered.** QuickNotes described exactly
-this — *"return to base after exploring, upload all your maps into a table, and the next guy
-can come, supply paper, and pull out a fully up to date map"* — and the Cutter as designed
-above has since accreted storage, dedupe, a paper sink, curse removal and individual
-extraction around it. Those are all workbench jobs. The sync is not.
-
-**Recommend one block, two gestures.** They operate on the same stored `MapCollection`, and
-two blocks with separate stores invites "which one did I dump into?".
-
-| Gesture | Result |
-|---|---|
-| Right-click **holding an atlas** | Sync, no screen, no item shuffling |
-| Right-click **empty-handed** | Open the Cutter screen (dedupe, extraction, paper) |
-
-### One gesture, both directions
-
-A sync does both halves at once, so there is no mode to choose:
-
-- **The board takes everything from your atlas, free.** You are donating knowledge.
-- **Your atlas takes from the board, paying paper per cell**, nearest-first, until your
-  empty-map budget runs out.
-
-**Paying paper on the way in is what protects T1.1.** *The board sells you the walking, not
-the paper.* Absorbing a continent still costs what mapping it would have cost; you are just
-spared the journey. Without that rule the board is an infinite free-map dispenser and the
-whole economy collapses.
-
-**Nearest-first matters** when the budget runs short: you leave with the cells around you,
-which is what you want when heading out, rather than an arbitrary slice of someone else's
-expedition.
-
-### Why this is the strongest cooperative mechanic in Pillar I
-
-**It makes exploration a job you can do for other people.** One player walks; everyone
-benefits; the walker is not diminished by sharing. Nothing else in the cartography half
-creates a reason for players to specialise, and it needs no new systems — just a block
-holding a `MapCollection` and the dedupe logic T0.1 already provides.
-
-### Open
-
-- **Siting tension.** A shared board wants to be in the entrance hall; a workbench wants to
-  be in the map room. One block cannot be both. Options: live with it, allow several boards
-  and accept they hold separate stores (confusing), or add a cheap terminal block that links
-  to a Cutter later. Recommend living with it until it chafes. → **D28.**
-- **Access control.** Anyone can absorb. That is probably right for a shared base and
-  probably wrong on a public server. A vanilla lock component is the cheap answer. → **D29.**
-- **Name.** "Survey Board" reads right for the mundane cartography register; the leyline
-  vocabulary belongs to Pillar II. → **D30.**
-
-**Under layers (§5)** the board's collection is multi-scale like any other, so it accumulates
-every layer anyone contributes. A **Leyline Atlas cannot sync** — it is frozen and
-single-scale by definition, which is consistent and needs no special case.
-
-**T3.2 — Dissolve an atlas. *Retained — it is the uninstall path.*** T3.1's "dump"
+**T3.2 — Dissolve an atlas. *Retained — it is the uninstall path.*** The Surveyor's sync
 covers the in-game ergonomics, so dissolve is not needed as a convenience. It is
 needed as an **exit**: if a player uninstalls the mod, every map they own is trapped
 inside an item that will no longer exist. Dissolve converts an atlas back into plain
@@ -2843,13 +2833,13 @@ so a rotational or thermal converter is a new device rather than a save migratio
 the inscribed block store and restore the original `BlockState` (recommend yes — it is what
 makes modded stone work); do naturally-generated leylines use the same inscribed-block form.
 
-**D28 — Board siting.** One block cannot be both entrance-hall drop box and map-room
-workbench. Live with it, or add a linked terminal later.
+*(D28 — siting tension — resolved by splitting into two blocks.)*
 
-**D29 — Board access control.** Anyone can absorb; fine for a shared base, wrong for a
+**D29 — Surveyor access control.** Anyone can absorb; fine for a shared base, wrong for a
 public server. A vanilla lock component is the cheap answer.
 
-**D30 — Name the syncing block.** "Survey Board" fits the cartography register.
+*(D30 — name — settled: **Atlas Surveyor**, so it sorts beside Atlas Cutter under "atlas".
+Provisional.)*
 
 **D25 — Name the paper-thrift enchantment.** Something cartographic rather than
 mechanical. It is our own enchantment with its own `supported_items`, so weight, level

@@ -211,12 +211,25 @@ Data model first; it is smaller than the Excerpt claimed (§5.2).
 
 ### 2.5 Atlas Cutter, dissolve, absorption
 
-- [ ] Atlas Cutter block + screen: bulk dump, bulk load, individual withdrawal, dedupe
-- [ ] **Sync gesture (T3.1a)** — right-click holding an atlas syncs both ways with no
-      screen: the block takes everything free, your atlas takes what its paper affords,
-      nearest-first. Right-click empty-handed opens the workbench screen. This is the
-      cooperative core of Pillar I, so treat it as the primary interaction rather than a
-      convenience on top of the screen.
+**Two blocks, split by what they move: the Surveyor moves knowledge, the Cutter moves items.**
+
+- [ ] **Atlas Surveyor (T3.1a)** — the shared repository. No item slots.
+  - [ ] Holds a `MapCollection`; right-click holding an atlas syncs both ways in one gesture
+  - [ ] Takes everything free; gives back only what the atlas's empty-map pool affords,
+        nearest-first. **This paper rule is what keeps T1.1 intact** — it sells the walking,
+        not the paper
+  - [ ] Dedupe silently on the way in, reusing T0.1
+  - [ ] Absorb an upstream Map Atlases atlas through the same gesture (T3.6)
+  - [ ] Lockable (D29)
+  - [ ] Optional read-only coverage view when empty-handed
+- [ ] **Atlas Cutter (T3.1b)** — the workbench. Slot an atlas and change it.
+  - [ ] Withdraw individual maps as items
+  - [ ] Universal paper sink, datapack-driven, byproducts returned
+  - [ ] Curse removal, merge/clone, manual dedupe
+  - [ ] Dissolve (T3.2), the uninstall path
+
+*Build the Surveyor first.* It is the cooperative core, it needs no screen, and the Cutter's
+paper sink only matters once there is something to spend paper on.
 - [ ] Universal paper sink — datapack table of item → (paper, byproducts); book returns leather
 - [ ] Curse removal (it cannot reach a Binding-locked atlas — that asymmetry is intended)
 - [ ] **Dissolve** (T3.2) — the uninstall path. Complete and lossless; may be slow and gated
