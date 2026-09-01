@@ -528,14 +528,19 @@ See §5. This is the gate for T3.1 and T3.2.
 *Revised 2026-09-01. I had piled nine jobs onto one block. Asked to say which belong where,
 the line turns out to be clean:*
 
-> **The Atlas Surveyor moves knowledge. The Atlas Cutter moves items.**
+> **The Surveyor needs no inventory. The Cutter is an inventory device.**
+
+*(An earlier draft said "entries versus items". That was wrong: an atlas entry and a filled
+map item are both a `MapId`. The real line is whether an operation moves anything through
+the player's inventory. Syncing copies ids between two collections and touches nothing;
+withdrawing, feeding paper and dissolving all create or consume `ItemStack`s.)*
 
 Both sort under "atlas" in a recipe search, which is the point of the naming.
 
 | | **Atlas Surveyor** | **Atlas Cutter** |
 |---|---|---|
 | Holds | a shared `MapCollection` | nothing persistent |
-| Operates on | map *entries* | map *items* |
+| Touches your inventory | never | always |
 | Interaction | right-click, no screen | slot-and-screen workbench |
 | Lives in | the entrance hall | the map room |
 
@@ -548,22 +553,37 @@ want to be in different rooms because they are different activities, and now the
 
 The shared repository. **No item slots at all.**
 
-- **Right-click holding an atlas: sync, both directions, one gesture.**
-  - The Surveyor takes everything your atlas knows, **free**. You are donating knowledge.
-  - Your atlas takes what its **empty-map pool can pay for**, nearest-first.
+**Modelled on Valheim's cartography table.** Walking up to it and *seeing the pooled world*
+is the point, not a convenience bolted on top.
+
+- **Right-click opens the shared map — with or without an atlas in hand.** The screen is
+  `AtlasOverviewScreen` backed by the block's own collection instead of an item's.
+- Then two explicit actions, as Valheim has read and write:
+  - **Donate** — free. Everything your atlas knows goes in.
+  - **Absorb** — **shows the paper cost before you commit**, then takes nearest-first for
+    as much as you can pay.
 - **Dedupe happens on the way in**, silently, using T0.1's logic. No player-facing button.
-- **Absorbs an upstream Map Atlases atlas** (T3.6) through the same gesture. Migration is
-  just a sync from a foreign atlas.
-- **Empty-handed: a read-only coverage view.** Optional; the loop works without it.
+- **Absorbs an upstream Map Atlases atlas** (T3.6) the same way. Migration is just a donate
+  from a foreign atlas.
 - Lockable, per D29.
+
+**A preview screen is not optional, and the paper cost is why.** *(I had it as a nicety.)*
+Absorbing costs paper, so a silent both-ways sync on right-click would spend a player's
+paper without asking. They have to be able to look before paying, which is exactly the
+interaction Valheim already settled on.
+
+**Opening it needs no atlas at all.** A player who has never crafted one can walk up and see
+the world their server has explored. That is a genuinely good onboarding property and it
+costs nothing to allow.
 
 **Paying paper on the way out is what protects T1.1.** *The Surveyor sells the walking, not
 the paper.* Absorbing a continent costs what mapping it would have; you are spared only the
-journey. Nearest-first matters when the budget runs short, so you leave with the cells
-around you rather than an arbitrary slice of someone else's expedition.
+journey.
 
-**Why it needs no slots:** the budget is the atlas's own empty-map pool, the same pool
-exploration draws on. Nothing has to be handed to the block.
+**Separate Surveyors do not talk to each other, and that is a feature.** A server where
+everyone keeps their own table makes a **courier** a real job: one lap absorbing from every
+table, a second lap donating to each, and the whole network converges. Nobody designed that;
+it falls out of the repositories being local.
 
 **And that produces a workflow rather than a chore:** come home → **Cutter** to reload paper
 → **Surveyor** to sync → head out. The two blocks chain naturally, and neither duplicates
