@@ -28,6 +28,7 @@ import notuserfriendly.mapatlasesrecut.utils.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.TreeSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,12 +74,7 @@ public class MapAtlasesServerEvents {
         Slice slice = MapAtlasItem.getSelectedSlice(atlas, dimension);
         MapCollection maps = MapAtlasItem.getMaps(atlas, level);
 
-        // One neighbourhood per layer. An atlas holding a single scale behaves exactly as
-        // before; one holding several maintains every layer it has. Which layers an atlas
-        // *should* hold is policy and lives elsewhere -- this only keeps up what exists.
-        Collection<Byte> layers = maps.getScales().isEmpty()
-                ? List.of((byte) 0)
-                : List.copyOf(maps.getScales());
+        Collection<Byte> layers = layersToMaintain(maps);
 
         MapsNeighborhood finest = MapsNeighborhood.around(player, layers.iterator().next(), slice);
 
@@ -154,6 +150,24 @@ public class MapAtlasesServerEvents {
                     MapAtlasesAccessUtils.tickHoldingPlayerAndSync(below, player, atlas, TriState.SET_TRUE);
             }
         }
+    }
+
+    /**
+     * Scales this atlas keeps up to date: everything it already holds, plus a coarse base
+     * layer underneath.
+     * <p>
+     * The base is what makes the world stop being blank where you merely passed nearby. A
+     * base cell spans 2048 blocks against a scale 0 cell's 128, so it is created about one
+     * time in 256 and costs correspondingly little to maintain.
+     */
+    private static Collection<Byte> layersToMaintain(MapCollection maps) {
+        TreeSet<Byte> layers = new TreeSet<>(maps.getScales());
+        if (layers.isEmpty()) layers.add((byte) 0);
+        int base = MapAtlasesConfig.baseLayerScale.get();
+        if (base >= 0 && layers.first() < base) {
+            layers.add((byte) base);
+        }
+        return layers;
     }
 
     //TODO: optimize

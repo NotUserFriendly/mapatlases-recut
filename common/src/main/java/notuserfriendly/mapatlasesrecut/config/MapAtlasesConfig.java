@@ -67,6 +67,8 @@ public class MapAtlasesConfig {
                 .define("update_priority", UpdateFashion.SMART);
         mapUpdatePerTick = builder.comment("Max of maps to update each tick. Increase to make maps update faster")
                 .define("map_updates_per_tick", 1, 0, 100);
+        baseLayerScale = builder.comment("Every atlas also keeps a coarse base layer at this scale, drawn under its detailed maps so the world is never blank where you have merely passed nearby. Set to -1 to keep only the scale the atlas was crafted at. A base cell covers 2048 blocks square, so it is created roughly one time in 256 compared to a scale 0 cell")
+                .define("base_layer_scale", 4, -1, 4);
         paintedRefreshTicks = builder.comment("How often a map whose picture is already complete is refreshed anyway, in ticks. Changes within 48 blocks always update immediately regardless; this only bounds how long a distant change can go unnoticed. Higher saves more work")
                 .define("painted_map_refresh_ticks", 200, 20, 2400);
         skipUnchangedMaps = builder.comment("Skip rescanning a map whose picture is already complete when no block near the player has changed since it was last scanned. Large saving when standing still or crossing explored ground")
@@ -110,6 +112,7 @@ public class MapAtlasesConfig {
     public static final Supplier<Integer> mapUpdatePerTick;
     public static final Supplier<Boolean> skipUnchangedMaps;
     public static final Supplier<Integer> paintedRefreshTicks;
+    public static final Supplier<Integer> baseLayerScale;
     public static final Supplier<Double> mapRange;
     public static final Supplier<ActivationLocation> activationLocation;
 
