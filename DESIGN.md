@@ -386,6 +386,62 @@ custom-tile design are alternatives rather than complements. **Pick one.** The
 recommendation is layers, because it keeps vanilla interop, and Option 2 to make it
 fast.
 
+### 5.6a — Division of labour: cheap layer draws, vanilla layer records
+
+*Operator, 2026-09-01, revisiting "fake it" with a specific architecture. This supersedes the
+speculation idea above, and is better than it.*
+
+> The atlas draws an easy, any-other-map-mod layer and fakes uncovering it, while the slow
+> vanilla map building happens underneath. Minimap gets direct-block-access performance, and
+> opening the atlas still shows real vanilla maps.
+
+**Why this is not the "faking" I rejected earlier.** I dismissed queuing because deferring
+work does not reduce it, then framed client-side drawing as speculation needing reconciliation
+with the server. Neither applies here. Nothing is deferred and nothing is predicted: two
+layers each do the job they are good at.
+
+| | Draws the minimap | Holds the record |
+|---|---|---|
+| **Cheap layer** | client side, from loaded chunks, cached per chunk | no |
+| **Vanilla maps** | no | yes: saveable, shareable, frameable, syncs to other players |
+
+**The win is not on the drawing side, it is on the update rate.** `computeUpdateRate` scales
+with player speed specifically to keep the minimap current, reaching 2 scans a tick while
+moving against 0.1 standing still. If the minimap no longer reads vanilla map data, that rate
+answers to the atlas screen instead, which needs to be right *when opened*, not every tick.
+Roughly a 95% cut in server scanning, and the minimap gets **better**, not worse: always
+current, never strip-painted.
+
+**"Fakes uncovering it" is the load-bearing half.** The cheap layer can see everything in
+render distance, so shown raw it hands the player terrain they never paid paper for and guts
+T1.1. It must be masked to the cells the atlas has unlocked, which splits cleanly:
+
+- **Ownership** — which cells you have paid for — stays with the atlas.
+- **Pixels** — what those cells look like — come from the cheap cache.
+
+*(This is the ownership/pixel split floated in §5.6 and dropped as too invasive. It is far more
+attractive once the cheap layer is the display rather than a speculative overlay.)*
+
+**Costs and risks, honestly:**
+
+- **Two render paths** to keep looking alike. Use vanilla's own colour derivation in the cheap
+  layer, or the minimap and the atlas will visibly disagree.
+- **Client-only vision.** The cheap layer shows what this client has loaded, so another
+  player's exploration appears only once the vanilla layer syncs. Correct, but worth knowing.
+- **Staleness on opening.** With updates throttled hard, the atlas screen may lag the world.
+  Either force a catch-up on open, or accept it.
+- **Cache size is a non-issue.** A 16x16 colour patch per chunk is 256 bytes; a 32 chunk
+  render distance is under a megabyte.
+
+### The cheap experiment that validates this before any of it is built
+
+**Throttle vanilla updates hard and see what actually degrades.** If the answer is "only the
+minimap", the architecture is confirmed, because the cheap layer is precisely that fix. If the
+atlas screen degrades too, the split is less clean than it looks.
+
+No code needed: set `map_updates_per_tick` low, travel, and watch which surface suffers.
+→ **D35.**
+
 **Where a custom format *would* be complementary rather than alternative.** One
 shape survives the objection: a client-side high-detail cache used as a **pure display
 overlay**, never as storage. `MapItemSavedData` stays authoritative — it is what is
@@ -3002,6 +3058,11 @@ region the player is not standing in when vanilla's scan is viewer-centred.
 **D34 — Warn when a maintained layer is being ignored.** With `limit_to_two_layers` on,
 ticking a middle layer silently does nothing. That needs to be visible once the toggles become
 checkboxes, not discovered.
+
+**D35 — Validate the division of labour before building it.** Throttle vanilla map updates
+hard and observe what degrades. Only the minimap suffering confirms §5.6a, since the cheap
+layer is exactly that fix. The atlas screen suffering too means the split is less clean than
+it looks, and catch-up-on-open needs answering first.
 
 **D29 — Surveyor access control.** Anyone can absorb; fine for a shared base, wrong for a
 public server. A vanilla lock component is the cheap answer.
