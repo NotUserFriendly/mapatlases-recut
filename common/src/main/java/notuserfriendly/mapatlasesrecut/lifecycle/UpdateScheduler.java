@@ -5,6 +5,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.phys.Vec2;
+import notuserfriendly.mapatlasesrecut.MapAtlasesMod;
 import notuserfriendly.mapatlasesrecut.config.MapAtlasesConfig;
 import notuserfriendly.mapatlasesrecut.utils.ChunkChangeIndex;
 import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
@@ -12,6 +13,7 @@ import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class UpdateScheduler {
 
@@ -51,10 +53,38 @@ public abstract class UpdateScheduler {
         while (accumulator >= 1f) {
             MapDataHolder next = poll(player);
             accumulator -= 1f;
-            if (next == null) break;
+            if (next == null) {
+                SKIPPED.incrementAndGet();
+                break;
+            }
+            SCANNED.incrementAndGet();
             next.updateMapColorsAndMarkers(player);
             state(next).lastScan = player.level().getGameTime();
         }
+        maybeReport(player.level().getGameTime());
+    }
+
+    // --- measurement, for the profiling gate ---------------------------------------
+
+    private static final AtomicLong SCANNED = new AtomicLong();
+    private static final AtomicLong SKIPPED = new AtomicLong();
+    private static volatile long lastReportTick = 0L;
+
+    /** Columns MapItem.update samples per call, constant across map scales. */
+    private static final long COLUMNS_PER_SCAN = 4096L;
+    private static final long REPORT_PERIOD = 600L;
+
+    private static void maybeReport(long gameTime) {
+        if (!MapAtlasesConfig.debugUpdate.get()) return;
+        if (gameTime - lastReportTick < REPORT_PERIOD) return;
+        lastReportTick = gameTime;
+        long scanned = SCANNED.getAndSet(0);
+        long skipped = SKIPPED.getAndSet(0);
+        long total = scanned + skipped;
+        if (total == 0) return;
+        MapAtlasesMod.LOGGER.info(
+                "map scans in last {}s: {} performed, {} skipped ({}%), ~{} column samples avoided",
+                REPORT_PERIOD / 20, scanned, skipped, (100 * skipped) / total, skipped * COLUMNS_PER_SCAN);
     }
 
     /**
