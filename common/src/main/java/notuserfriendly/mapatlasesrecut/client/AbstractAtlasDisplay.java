@@ -117,6 +117,14 @@ public abstract class AbstractAtlasDisplay {
         double refBlocksPerPixel = 1 << ref;
         boolean skipIfFinerCovers = MapAtlasesClientConfig.drawFinestLayerOnly.get();
 
+        // Borders come from the finest visible layer only. The outline texture is a 128 unit
+        // sprite drawn through the same transform as its map, so a coarse layer scales its
+        // dotted separator by 2^(s - ref) as well -- at scale 4 over scale 0 that is a chunk
+        // wide pale band. And outlines draw after every layer, so it lands on top of the
+        // detail rather than behind it.
+        byte outlineLayer = ref;
+        for (byte candidate : layersCoarsestFirst()) outlineLayer = candidate;
+
         for (byte layer : layersCoarsestFirst()) {
             float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
             int layerBlocks = MAP_DIMENSION << layer;
@@ -138,15 +146,14 @@ public abstract class AbstractAtlasDisplay {
 
                     MapDataHolder state = getMapAtLayer(cx, cz, layer);
                     if (state == null) continue;
-                    if (layer > ref) probeLayer(layer, cx, cz, state);
                     if (skipIfFinerCovers && layer > ref && isCoveredByFiner(cx, cz, layer, ref)) continue;
 
                     boolean drawPlayerIcons = !this.drawBigPlayerMarker
                             && state.data.dimension.equals(player.level().dimension());
                     double px = (cx - currentXCenter) / refBlocksPerPixel;
                     double pz = (cz - currentZCenter) / refBlocksPerPixel;
-                    drawMapAt(player, poseStack, vcp, outlineHack, px, pz, factor,
-                            state, drawPlayerIcons, light, selectedKey);
+                    drawMapAt(player, poseStack, vcp, layer == outlineLayer ? outlineHack : null,
+                            px, pz, factor, state, drawPlayerIcons, light, selectedKey);
                 }
             }
             // Flush before the next layer so painter's order actually holds. Each map has its
@@ -210,34 +217,6 @@ public abstract class AbstractAtlasDisplay {
         graphics.enableScissor(x, y, x1, y1);
     }
 
-    // PROBE -- remove once the pale bar is understood. Dumps the painted bounding box of
-    // each layer's map once a second, so the shape drawn can be compared with the shape
-    // actually painted instead of inferred from a screenshot.
-    private static long lastLayerProbe = 0;
-
-    private static void probeLayer(byte layer, int cx, int cz, MapDataHolder h) {
-        long now = System.currentTimeMillis();
-        if (now - lastLayerProbe < 1000) return;
-        lastLayerProbe = now;
-        byte[] c = h.data.colors;
-        int minX = 999, maxX = -1, minZ = 999, maxZ = -1, painted = 0;
-        for (int z = 0; z < 128; z++) {
-            for (int x = 0; x < 128; x++) {
-                if (c[x + z * 128] == 0) continue;
-                painted++;
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (z < minZ) minZ = z;
-                if (z > maxZ) maxZ = z;
-            }
-        }
-        MapAtlasesMod.LOGGER.info(
-                "PROBE layer scale={} cell=({}, {}) painted={} px  bbox x[{}..{}] z[{}..{}] = {}x{} px = {}x{} blocks",
-                layer, cx, cz, painted, minX, maxX, minZ, maxZ,
-                maxX - minX + 1, maxZ - minZ + 1,
-                (maxX - minX + 1) << layer, (maxZ - minZ + 1) << layer);
-    }
-
     /**
      * True when every finer cell overlapping this coarse one exists, so the coarse map would
      * be completely hidden anyway. Checked at the layer immediately below, not all the way
@@ -290,7 +269,7 @@ public abstract class AbstractAtlasDisplay {
             Player player,
             PoseStack poseStack,
             MultiBufferSource.BufferSource vcp,
-            Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
+            @Nullable Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
             double px, double pz, float factor,
             MapDataHolder state,
             boolean drawPlayerIcons,
@@ -350,10 +329,12 @@ public abstract class AbstractAtlasDisplay {
                         light //
                 );
 
-        if (state.data == selectedData) {
-            outlineHack.getSecond().add(new Matrix4f(poseStack.last().pose()));
-        } else {
-            outlineHack.getFirst().add(new Matrix4f(poseStack.last().pose()));
+        if (outlineHack != null) {
+            if (state.data == selectedData) {
+                outlineHack.getSecond().add(new Matrix4f(poseStack.last().pose()));
+            } else {
+                outlineHack.getFirst().add(new Matrix4f(poseStack.last().pose()));
+            }
         }
 
         poseStack.popPose();
