@@ -386,6 +386,48 @@ custom-tile design are alternatives rather than complements. **Pick one.** The
 recommendation is layers, because it keeps vanilla interop, and Option 2 to make it
 fast.
 
+### 5.6b — Distant Horizons as an optional source of far terrain
+
+*Operator, 2026-09-01, and a better answer than reimplementing generation.*
+
+Measurement killed generating terrain ourselves: `SURFACE` costs ~50ms a chunk, a whole tick,
+and `ServerChunkCache.getChunk` bounces to the main thread so it cannot be hidden. Reading
+already-generated chunks is cheap (~1.2ms) but finds almost nothing at a default render
+distance, because the scan already reaches as far as chunks load.
+
+**Distant Horizons has already solved the expensive part.** It generates and caches far terrain
+as LODs, on its own worker threads, with its own storage. As an **optional dependency** we get
+that for free: install it for the full feature, leave it out and everything else still works.
+It also makes explicit DH compat a thing the mod has, which is wanted independently.
+
+**The design question is which side the data lives on.** DH is a renderer, so its LODs are
+client side. Vanilla map data is server-authoritative, and a client writing map pixels the
+server never saw breaks that. So DH cannot feed vanilla maps directly.
+
+**Which is exactly the shape of §5.6a**, parked above:
+
+| | data source | role |
+|---|---|---|
+| Cheap display layer | loaded chunks, **or DH LODs where present** | draws the minimap and the atlas view |
+| Vanilla maps | the server scan | saveable, shareable, frameable, syncs |
+
+§5.6a was parked because a config value fixed the performance problem it was written for. It
+comes back for a different reason: it is the only place DH data can legitimately go. **Unpark
+it if DH integration goes ahead** — the two are one piece of work.
+
+**Their LOD levels map onto our scale layers.** DH already stores terrain at several detail
+levels for exactly the reason we have scales, so a coarse layer should be able to consume a
+coarse LOD rather than sampling anything.
+
+**Verify before committing** — asserted from general knowledge, not checked:
+
+- the shape and stability of the DH API for 1.21.1, and whether terrain queries are public
+- whether LOD data can be read for arbitrary coordinates or only what DH has chosen to load
+- whether DH offers any server-side data, which would allow feeding vanilla maps after all
+- what happens on a dedicated server where the client has DH and the server does not
+
+→ **D37.**
+
 ### 5.6a — Division of labour: cheap layer draws, vanilla layer records — **PARKED**
 
 *Backburnered 2026-09-01. Raising `map_updates_per_tick` from its default of 1 gave an
@@ -3073,6 +3115,11 @@ scanning cost becomes binding.)*
 hard and observe what degrades. Only the minimap suffering confirms §5.6a, since the cheap
 layer is exactly that fix. The atlas screen suffering too means the split is less clean than
 it looks, and catch-up-on-open needs answering first.
+
+**D37 — Distant Horizons as an optional dependency.** Verify the API shape for 1.21.1 before
+committing. If it holds, it supplies far terrain we cannot afford to generate, and §5.6a
+unparks as the layer that consumes it. Soft dependency throughout: without DH the mod loses
+reach past render distance and nothing else.
 
 **D29 — Surveyor access control.** Anyone can absorb; fine for a shared base, wrong for a
 public server. A vanilla lock component is the cheap answer.
