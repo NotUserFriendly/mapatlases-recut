@@ -13,23 +13,23 @@
   },
   "license": "${mod_license}",
   "icon": "icon.png",
-  "accessWidener": "map_atlases.accesswidener",
+  "accessWidener": "map_atlases_recut.accesswidener",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "pepjebs.mapatlases.platform.MapAtlasesFabric"
+      "notuserfriendly.mapatlasesrecut.platform.MapAtlasesFabric"
     ],
     "modmenu": [
-      "pepjebs.mapatlases.integration.platform.ModMenuCompat"
+      "notuserfriendly.mapatlasesrecut.integration.platform.ModMenuCompat"
     ],
     "rei_client": [
-      "pepjebs.mapatlases.integration.REICompat"
+      "notuserfriendly.mapatlasesrecut.integration.REICompat"
     ],
     "jei_mod_plugin": [
-      "pepjebs.mapatlases.integration.JEICompat"
+      "notuserfriendly.mapatlasesrecut.integration.JEICompat"
     ],
     "emi": [
-      "pepjebs.mapatlases.integration.EMICompat"
+      "notuserfriendly.mapatlasesrecut.integration.EMICompat"
     ]
   },
   "custom": {

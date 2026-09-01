@@ -1,0 +1,42 @@
+package notuserfriendly.mapatlasesrecut.client.screen;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ColumnPos;
+import notuserfriendly.mapatlasesrecut.client.CompoundTooltip;
+import notuserfriendly.mapatlasesrecut.client.MapAtlasesClient;
+import notuserfriendly.mapatlasesrecut.integration.moonlight.ClientMarkers;
+import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
+
+public class PinButton extends AtlasButton {
+
+    protected PinButton(int pX, int pY, AtlasOverviewScreen screen) {
+        super(pX, pY, 16, 16, screen,
+                MapAtlasesClient.PIN_BUTTON_SPRITE, MapAtlasesClient.PIN_BUTTON_HOVERED_SPRITE);
+        Tooltip tooltip = Tooltip.create(Component.translatable("message.map_atlases_recut.pin"));
+        if (Minecraft.getInstance().options.advancedItemTooltips) {
+            Tooltip t2 = Tooltip.create(Component.translatable("message.map_atlases_recut.pin.info")
+                    .withStyle(ChatFormatting.GRAY));
+            tooltip = CompoundTooltip.create(tooltip, t2);
+        }
+        this.setTooltip(tooltip);
+    }
+
+    @Override
+    public void onClick(double mouseX, double mouseY) {
+        parentScreen.toggleCursorAction(CursorAction.PLACING_PIN);
+    }
+
+    @Override
+    public ResourceLocation getSprite() {
+        return isHovered ? selectedSprite : sprite;
+    }
+
+    public static void placePin(MapDataHolder map, ColumnPos pos, String text, int index) {
+        ClientMarkers.placePin(map, pos, text, index);
+    }
+
+}

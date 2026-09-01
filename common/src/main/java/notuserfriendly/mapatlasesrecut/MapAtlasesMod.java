@@ -1,0 +1,176 @@
+package notuserfriendly.mapatlasesrecut;
+
+
+import com.mojang.serialization.Codec;
+import net.mehvahdjukaar.moonlight.api.platform.PlatHelper;
+import net.mehvahdjukaar.moonlight.api.platform.RegHelper;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.tags.TagKey;
+import net.minecraft.util.Unit;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.saveddata.maps.MapDecorationType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import notuserfriendly.mapatlasesrecut.client.MapAtlasesClient;
+import notuserfriendly.mapatlasesrecut.config.MapAtlasesClientConfig;
+import notuserfriendly.mapatlasesrecut.config.MapAtlasesConfig;
+import notuserfriendly.mapatlasesrecut.integration.SupplementariesCompat;
+import notuserfriendly.mapatlasesrecut.integration.moonlight.MoonlightCompat;
+import notuserfriendly.mapatlasesrecut.item.MapAtlasItem;
+import notuserfriendly.mapatlasesrecut.map_collection.EmptyMaps;
+import notuserfriendly.mapatlasesrecut.map_collection.MapCollection;
+import notuserfriendly.mapatlasesrecut.networking.MapAtlasesNetworking;
+import notuserfriendly.mapatlasesrecut.item.recipe.AntiqueAtlasRecipe;
+import notuserfriendly.mapatlasesrecut.item.recipe.MapAtlasCreateRecipe;
+import notuserfriendly.mapatlasesrecut.item.recipe.MapAtlasesAddRecipe;
+import notuserfriendly.mapatlasesrecut.item.recipe.MapAtlasesCutExistingRecipe;
+import notuserfriendly.mapatlasesrecut.map_collection.SelectedSlices;
+import notuserfriendly.mapatlasesrecut.utils.TriState;
+
+import java.util.function.Supplier;
+
+
+public class MapAtlasesMod {
+
+    public static final String MOD_ID = "map_atlases_recut";
+    public static final Logger LOGGER = LogManager.getLogger("Map Atlases");
+
+    public static final Supplier<MapAtlasItem> MAP_ATLAS;
+
+    public static final Supplier<RecipeSerializer<MapAtlasCreateRecipe>> MAP_ATLAS_CREATE_RECIPE;
+    public static final Supplier<RecipeSerializer<MapAtlasesAddRecipe>> MAP_ATLAS_ADD_RECIPE;
+    public static final Supplier<RecipeSerializer<MapAtlasesCutExistingRecipe>> MAP_ATLAS_CUT_RECIPE;
+    public static final Supplier<RecipeSerializer<AntiqueAtlasRecipe>> MAP_ANTIQUE_RECIPE;
+
+    public static final Supplier<SoundEvent> ATLAS_OPEN_SOUND_EVENT = RegHelper.registerSound(res("atlas_open"));
+    public static final Supplier<SoundEvent> ATLAS_PAGE_TURN_SOUND_EVENT = RegHelper.registerSound(res("atlas_page_turn"));
+    public static final Supplier<SoundEvent> ATLAS_CREATE_MAP_SOUND_EVENT = RegHelper.registerSound(res("atlas_create_map"));
+    
+    public static final Supplier<DataComponentType<MapCollection>> MAP_COLLECTION = RegHelper.registerDataComponent(
+            res("map_collection"), () -> DataComponentType.<MapCollection>builder()
+                    .networkSynchronized(MapCollection.STREAM_CODEC)
+                    .persistent(MapCollection.CODEC).build()
+    );
+
+    public static final Supplier<DataComponentType<Unit>> LOCKED = RegHelper.registerDataComponent(
+            res("locked"), () -> DataComponentType.<Unit>builder()
+                    .networkSynchronized(StreamCodec.unit(Unit.INSTANCE))
+                    .persistent(Unit.CODEC).build()
+    );
+
+    public static final Supplier<DataComponentType<EmptyMaps>> EMPTY_MAPS = RegHelper.registerDataComponent(
+            res("empty_maps"), () -> DataComponentType.<EmptyMaps>builder()
+                    .networkSynchronized(EmptyMaps.STREAM_CODEC)
+                    .persistent(EmptyMaps.CODEC).build()
+    );
+
+    public static final Supplier<DataComponentType<Integer>> HEIGHT = RegHelper.registerDataComponent(
+            res("height"), () -> DataComponentType.<Integer>builder()
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .persistent(Codec.INT).build()
+    );
+
+    public static final Supplier<DataComponentType<SelectedSlices>> SELECTED_SLICES = RegHelper.registerDataComponent(
+            res("selected_slices"), () -> DataComponentType.<SelectedSlices>builder()
+                    .networkSynchronized(SelectedSlices.STREAM_CODEC)
+                    .persistent(SelectedSlices.CODEC).build()
+    );
+
+    public static final TagKey<DimensionType> NON_TRACKED_DIMENSIONS = TagKey.create(
+            Registries.DIMENSION_TYPE, res("not_tracked_by_atlas"));
+    public static final TagKey<Item> STICKY_ITEMS = TagKey.create(Registries.ITEM, res("sticky_crafting_items"));
+    public static final TagKey<MapDecorationType> NON_REMOVABLE_DECORATIONS = TagKey.create(Registries.MAP_DECORATION_TYPE, res("no_button_on_atlas"));
+
+
+    public static final boolean CURIOS = PlatHelper.isModLoaded("curios");
+    public static final boolean TRINKETS = PlatHelper.isModLoaded("trinkets");
+    public static final boolean SUPPLEMENTARIES = PlatHelper.isModLoaded("supplementaries");
+    /**
+     * @deprecated moonlight is a required dependency, so this is always true. Kept only so external mods
+     * that read it keep linking.
+     */
+    @Deprecated(forRemoval = true)
+    public static final boolean MOONLIGHT = true;
+    public static final boolean TWILIGHTFOREST = PlatHelper.isModLoaded("twilightforest");
+
+    public static void init() {
+        MapAtlasesNetworking.init();
+
+        MapAtlasesConfig.init();
+        if (PlatHelper.getPhysicalSide().isClient()) {
+            MapAtlasesClientConfig.init();
+            MapAtlasesClient.init();
+        }
+        RegHelper.addItemsToTabsRegistration(MapAtlasesMod::addItemsToTabs);
+
+        //TODO
+        //fix text scaling not being pixel multiple
+        //make map texture updates happen way less frequently. Delay upload maybe
+        //lectern marker
+        //sound
+        //soap clear recipe
+        //spyglass zoom in curio with keybind
+        //auto waystone marker
+        //interdimensional marker
+        //antique in cart table
+
+
+        MoonlightCompat.init();
+        if (SUPPLEMENTARIES) SupplementariesCompat.init();
+    }
+
+    static {
+        // Register special recipes
+        MAP_ATLAS_CREATE_RECIPE = RegHelper.registerRecipeSerializer(res("crafting_atlas"),
+                MapAtlasCreateRecipe.Serializer::new);
+        MAP_ATLAS_ADD_RECIPE = RegHelper.registerRecipeSerializer(res("adding_atlas"),
+                () -> new SimpleCraftingRecipeSerializer<>(MapAtlasesAddRecipe::new));
+        MAP_ATLAS_CUT_RECIPE = RegHelper.registerRecipeSerializer(res("cutting_atlas"),
+                () -> new SimpleCraftingRecipeSerializer<>(MapAtlasesCutExistingRecipe::new));
+        MAP_ANTIQUE_RECIPE = RegHelper.registerRecipeSerializer(res("antique_atlas"),
+                () -> new SimpleCraftingRecipeSerializer<>(AntiqueAtlasRecipe::new));
+        // Register items
+        MAP_ATLAS = RegHelper.registerItem(res("atlas"),
+                () -> new MapAtlasItem(new Item.Properties()
+                        .component(EMPTY_MAPS.get(), EmptyMaps.EMPTY)
+                        .component(MAP_COLLECTION.get(), MapCollection.EMPTY)
+                        .stacksTo(16)));
+
+    }
+
+
+    public static void addItemsToTabs(RegHelper.ItemToTabEvent event) {
+        event.addAfter(CreativeModeTabs.TOOLS_AND_UTILITIES, i -> i.is(Items.MAP), MAP_ATLAS.get());
+    }
+
+    public static ResourceLocation res(String name) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, name);
+    }
+
+    public static TriState containsHack() {
+        return hack;
+    }
+
+    public static void setMapInInventoryHack(TriState value) {
+        hack = value;
+    }
+
+
+    private static TriState hack = TriState.PASS;
+
+    public static boolean rangeCheck(int distance, int range, int scale) {
+        return distance <= (range + 1 + scale) * (range + 1 + scale);
+    }
+
+
+}

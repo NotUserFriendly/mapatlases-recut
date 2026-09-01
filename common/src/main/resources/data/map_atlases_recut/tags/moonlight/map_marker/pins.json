@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "map_atlases_recut:pin_red",
+    "map_atlases_recut:pin_blue",
+    "map_atlases_recut:pin_green",
+    "map_atlases_recut:pin_yellow",
+    "map_atlases_recut:pin_orange",
+    "map_atlases_recut:pin_apple",
+    "map_atlases_recut:pin_aqua",
+    "map_atlases_recut:pin_purple"
+  ]
+}

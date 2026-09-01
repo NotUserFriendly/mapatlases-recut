@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "map_atlases_recut:boss_entity",
+    "map_atlases_recut:hostile_entity",
+    "map_atlases_recut:neutral_entity",
+    "map_atlases_recut:passive_entity"
+  ]
+}

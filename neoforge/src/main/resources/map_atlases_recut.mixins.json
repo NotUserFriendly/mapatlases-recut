@@ -1,0 +1,17 @@
+{
+  "minVersion": "0.8",
+  "required": true,
+  "compatibilityLevel": "JAVA_17",
+  "package": "notuserfriendly.mapatlasesrecut.mixin.neoforge",
+  "client": [
+    "ItemInHandRendererMixin"
+  ],
+  "mixins": [
+    "MixinCartographyTableAbstractContainerMenuSecondSlot",
+    "MixinCartographyTableAbstractContainerMenuSecondSlotMaps",
+    "MixinCartographyTableHandlerFirstSlot"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
