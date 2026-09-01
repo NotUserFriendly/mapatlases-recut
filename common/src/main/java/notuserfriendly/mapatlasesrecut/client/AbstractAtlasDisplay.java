@@ -124,6 +124,18 @@ public abstract class AbstractAtlasDisplay {
         // showing coarse ones while zoomed in gives a chunk wide band. Pick by apparent size.
         byte outlineLayer = pickOutlineLayer(ref, zoomLevelDim);
 
+        if (showBorders) {
+            collectOutlineCells(outlineLayer, ref, refBlocksPerPixel, zoomLevelDim, type,
+                    intXCenter, intZCenter, poseStack, outlineHack, selectedKey);
+            // Underlay first, in black. The separator sprite is pale, so over blank parchment
+            // it is invisible -- which is why the grid over empty cells appeared to be missing
+            // rather than merely faint. Drawn again in white over the maps afterwards.
+            VertexConsumer underVC = MapAtlasesClient.MAP_BORDER_TEXTURE.buffer(vcp, RenderType::text);
+            for (var m : outlineHack.getFirst()) drawOutline(m, underVC, 0, 0, 0);
+            for (var m : outlineHack.getSecond()) drawOutline(m, underVC, 0, 0, 0);
+            vcp.endBatch();
+        }
+
         for (byte layer : layersCoarsestFirst()) {
             float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
             int layerBlocks = MAP_DIMENSION << layer;
@@ -143,40 +155,17 @@ public abstract class AbstractAtlasDisplay {
                     if (Math.abs(cx - currentXCenter) - halfCell > halfSpanBlocks) continue;
                     if (Math.abs(cz - currentZCenter) - halfCell > halfSpanBlocks) continue;
 
-                    boolean isOutlineLayer = layer == outlineLayer;
                     MapDataHolder state = getMapAtLayer(cx, cz, layer);
-                    if (state == null && !isOutlineLayer) continue;
-                    if (state != null && skipIfFinerCovers && layer > ref
-                            && isCoveredByFiner(cx, cz, layer, ref)) {
-                        state = null;
-                        if (!isOutlineLayer) continue;
-                    }
+                    if (state == null) continue;
+                    if (skipIfFinerCovers && layer > ref
+                            && isCoveredByFiner(cx, cz, layer, ref)) continue;
 
+                    boolean drawPlayerIcons = !this.drawBigPlayerMarker
+                            && state.data.dimension.equals(player.level().dimension());
                     double px = (cx - currentXCenter) / refBlocksPerPixel;
                     double pz = (cz - currentZCenter) / refBlocksPerPixel;
-
-                    if (state != null) {
-                        boolean drawPlayerIcons = !this.drawBigPlayerMarker
-                                && state.data.dimension.equals(player.level().dimension());
-                        drawMapAt(player, poseStack, vcp, px, pz, factor, state,
-                                drawPlayerIcons, light, selectedKey);
-                    }
-
-                    // Outline every cell of this layer, drawn or not, so empty ground shows a
-                    // grid of where maps would go rather than blank parchment.
-                    if (isOutlineLayer && showBorders) {
-                        poseStack.pushPose();
-                        poseStack.translate(px - MAP_DIMENSION * factor / 2.0,
-                                pz - MAP_DIMENSION * factor / 2.0, 0);
-                        poseStack.scale(factor, factor, 1);
-                        Matrix4f m = new Matrix4f(poseStack.last().pose());
-                        if (state != null && state.data == selectedKey) {
-                            outlineHack.getSecond().add(m);
-                        } else {
-                            outlineHack.getFirst().add(m);
-                        }
-                        poseStack.popPose();
-                    }
+                    drawMapAt(player, poseStack, vcp, px, pz, factor, state,
+                            drawPlayerIcons, light, selectedKey);
                 }
             }
             // Flush before the next layer so painter's order actually holds. Each map has its
@@ -218,20 +207,25 @@ public abstract class AbstractAtlasDisplay {
     protected abstract boolean showMapBackground();
 
     private static void drawOutline(Matrix4f matrix4f, VertexConsumer outlineVC) {
+        drawOutline(matrix4f, outlineVC, 255, 255, 255);
+    }
+
+    private static void drawOutline(Matrix4f matrix4f, VertexConsumer outlineVC,
+                                    int r, int g, int b) {
         //cause of vertex consumer chaining bug...
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         float zOffset = -1;
-        outlineVC.addVertex(matrix4f, 0.0F, 128.0F, zOffset).setColor(255, 255, 255, 255);
+        outlineVC.addVertex(matrix4f, 0.0F, 128.0F, zOffset).setColor(r, g, b, 255);
         outlineVC.setUv(0.0F, 1.0F)
                 .setLight(LightTexture.FULL_BRIGHT).setNormal(0, 1, 0);
-        outlineVC.addVertex(matrix4f, 128.0F, 128.0F, zOffset).setColor(255, 255, 255, 255);
+        outlineVC.addVertex(matrix4f, 128.0F, 128.0F, zOffset).setColor(r, g, b, 255);
         outlineVC.setUv(1.0F, 1.0F)
                 .setLight(LightTexture.FULL_BRIGHT).setNormal(0, 1, 0);
-        outlineVC.addVertex(matrix4f, 128.0F, 0.0F, zOffset).setColor(255, 255, 255, 255);
+        outlineVC.addVertex(matrix4f, 128.0F, 0.0F, zOffset).setColor(r, g, b, 255);
         outlineVC.setUv(1.0F, 0.0F)
                 .setLight(LightTexture.FULL_BRIGHT).setNormal(0, 1, 0);
-        outlineVC.addVertex(matrix4f, 0.0F, 0.0F, zOffset).setColor(255, 255, 255, 255);
+        outlineVC.addVertex(matrix4f, 0.0F, 0.0F, zOffset).setColor(r, g, b, 255);
         outlineVC.setUv(0.0F, 0.0F)
                 .setLight(LightTexture.FULL_BRIGHT).setNormal(0, 1, 0);
     }
@@ -241,27 +235,75 @@ public abstract class AbstractAtlasDisplay {
     }
 
     /**
-     * Layer whose separators to draw, by apparent cell size.
+     * Every cell of the separator layer in view, whether or not a map exists there, so blank
+     * ground shows a grid of where maps would go rather than empty parchment.
+     */
+    private void collectOutlineCells(byte outlineLayer, byte ref, double refBlocksPerPixel,
+                                     float zoomLevelDim, MapType type,
+                                     int intXCenter, int intZCenter, PoseStack poseStack,
+                                     Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
+                                     @Nullable MapItemSavedData selectedKey) {
+        float factor = outlineLayer >= ref
+                ? (1 << (outlineLayer - ref))
+                : 1f / (1 << (ref - outlineLayer));
+        int layerBlocks = MAP_DIMENSION << outlineLayer;
+        ColumnPos lc = type.getCenter(intXCenter, intZCenter, layerBlocks);
+        int span = Mth.ceil(zoomLevelDim / factor) + 1;
+        double halfSpanBlocks = (zoomLevelDim * 0.5 + 1) * (MAP_DIMENSION << ref);
+        double halfCell = layerBlocks * 0.5;
+
+        for (int i = span; i >= -span; i--) {
+            for (int j = span; j >= -span; j--) {
+                int cx = lc.x() + j * layerBlocks;
+                int cz = lc.z() + i * layerBlocks;
+                if (Math.abs(cx - currentXCenter) - halfCell > halfSpanBlocks) continue;
+                if (Math.abs(cz - currentZCenter) - halfCell > halfSpanBlocks) continue;
+
+                double px = (cx - currentXCenter) / refBlocksPerPixel;
+                double pz = (cz - currentZCenter) / refBlocksPerPixel;
+                poseStack.pushPose();
+                poseStack.translate(px - MAP_DIMENSION * factor / 2.0,
+                        pz - MAP_DIMENSION * factor / 2.0, 0);
+                poseStack.scale(factor, factor, 1);
+                Matrix4f m = new Matrix4f(poseStack.last().pose());
+                poseStack.popPose();
+
+                MapDataHolder here = getMapAtLayer(cx, cz, outlineLayer);
+                if (here != null && here.data == selectedKey) {
+                    outlineHack.getSecond().add(m);
+                } else {
+                    outlineHack.getFirst().add(m);
+                }
+            }
+        }
+    }
+
+    /**
+     * Layer whose separators to draw: the one putting roughly {@link #TARGET_CELLS_ACROSS}
+     * cells across the widget.
      * <p>
-     * A layer-s cell occupies {@code width * 2^(s - ref) / zoom} of the widget, so the finest
-     * layer still covering a readable fraction is the one worth dividing. Zooming out walks
-     * this up through the layers on its own.
+     * An earlier rule only asked whether the finer layer had become too dense, which handed
+     * over as soon as it did regardless of how absurd the coarser layer was. With scales 0
+     * and 4 that meant jumping to cells sixteen times too big at six maps across. Judging
+     * both ends puts the handover where the coarse layer actually starts being readable,
+     * around twelve, and steps through intermediate layers when an atlas holds them.
      */
     private byte pickOutlineLayer(byte ref, float zoom) {
         byte chosen = ref;
-        boolean any = false;
+        float best = Float.MAX_VALUE;
         for (byte layer : layersCoarsestFirst()) {
-            float cellFraction = (float) Math.pow(2, layer - ref) / Math.max(zoom, 0.001f);
-            if (!any || cellFraction >= MIN_OUTLINE_CELL_FRACTION) {
-                if (!any || layer <= chosen) chosen = layer;
-                any = true;
+            float across = zoom / (float) Math.pow(2, layer - ref);
+            float distance = Math.abs(across - TARGET_CELLS_ACROSS);
+            if (distance < best) {
+                best = distance;
+                chosen = layer;
             }
         }
         return chosen;
     }
 
-    /** Below roughly six cells across the widget, separators stop being readable. */
-    private static final float MIN_OUTLINE_CELL_FRACTION = 1f / 6f;
+    /** Separator density that reads well: about this many cells spanning the widget. */
+    private static final float TARGET_CELLS_ACROSS = 6f;
 
     /**
      * True when every finer cell overlapping this coarse one exists, so the coarse map would
