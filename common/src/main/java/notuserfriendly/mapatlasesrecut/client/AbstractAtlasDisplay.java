@@ -114,7 +114,6 @@ public abstract class AbstractAtlasDisplay {
         byte ref = refScale();
         double refBlocksPerPixel = 1 << ref;
 
-        int layerIndex = 0;
         for (byte layer : layersCoarsestFirst()) {
             float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
             int layerBlocks = MAP_DIMENSION << layer;
@@ -141,11 +140,16 @@ public abstract class AbstractAtlasDisplay {
                             && state.data.dimension.equals(player.level().dimension());
                     double px = (cx - currentXCenter) / refBlocksPerPixel;
                     double pz = (cz - currentZCenter) / refBlocksPerPixel;
-                    drawMapAt(player, poseStack, vcp, outlineHack, px, pz, factor, layerIndex,
+                    drawMapAt(player, poseStack, vcp, outlineHack, px, pz, factor,
                             state, drawPlayerIcons, light, selectedKey);
                 }
             }
-            layerIndex++;
+            // Flush before the next layer so painter's order actually holds. Each map has its
+            // own texture and therefore its own RenderType, and BufferSource.endBatch flushes
+            // those in its own order, not the order they were drawn in. Depth offsets were the
+            // first attempt and got the sign wrong, putting the base layer in front of both the
+            // detail and the player marker that rides on it.
+            vcp.endBatch();
         }
 
         vcp.endBatch();
@@ -229,7 +233,7 @@ public abstract class AbstractAtlasDisplay {
             PoseStack poseStack,
             MultiBufferSource.BufferSource vcp,
             Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
-            double px, double pz, float factor, int layerIndex,
+            double px, double pz, float factor,
             MapDataHolder state,
             boolean drawPlayerIcons,
             int light,
@@ -237,11 +241,9 @@ public abstract class AbstractAtlasDisplay {
     ) {
         poseStack.pushPose();
         // half a quad back to the corner, then scale the 128 unit quad to this layer's size.
-        // The small z step keeps coarse layers behind finer ones: map textures differ per
-        // map, so they batch separately and draw order alone cannot be relied on.
+        // All layers sit at the same depth; ordering comes from flushing between them.
         poseStack.translate(px - MAP_DIMENSION * factor / 2.0,
-                pz - MAP_DIMENSION * factor / 2.0,
-                layerIndex * 0.5);
+                pz - MAP_DIMENSION * factor / 2.0, 0);
         poseStack.scale(factor, factor, 1);
 
         // Remove the off-map player icons temporarily during render
