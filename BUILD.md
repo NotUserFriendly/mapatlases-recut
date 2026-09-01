@@ -103,12 +103,20 @@ should be a supported configuration, not an accident.
 
 ## PILLAR I — Cartography
 
-### 2.1 Correctness
+### 2.1 Correctness — **done**
 
-- [ ] Port PRs A/B/C onto the fork branch (they may diverge from the upstream versions)
-- [ ] Sort `ids` canonically once dedup guarantees one entry per cell (T0.3)
-- [ ] Strip degenerate `SELECTED_SLICES`, guarded on
-      `!isLoaded("supplementaries") && !isLoaded("twilightforest")`
+- [x] Port PRs A/B/C onto the fork branch (`3abcbc3`, `9835737`, `3fa5a88`). Applied as
+      path-rewritten patches, so authorship and messages match what upstream received.
+- [x] Sort `ids` canonically (T0.3) — carried in PR C.
+- [x] ~~Strip degenerate `SELECTED_SLICES` behind an `isLoaded` guard~~ → **dropped, it was a
+      no-op.** `setSelectedSlice` already refuses to store a `(VANILLA, no height)` slice, so
+      a vanilla-only atlas never writes the component, and the guard would have disabled the
+      fix exactly when Supplementaries or Twilight Forest make slices real.
+- [x] **The real bug underneath it** (`085b52c`): `SelectedSlices.removeAndAssigns` stored an
+      *empty* component instead of removing it. The atlas's only default components are
+      `EMPTY_MAPS` and `MAP_COLLECTION`, so an emptied `SELECTED_SLICES` leaves a data patch a
+      fresh atlas lacks, and the two stop stacking. Needs no mod guard. Not sent upstream
+      since it surfaced after the PRs went out; worth offering later.
 
 ### 2.2 Performance — do this *before* layers
 
