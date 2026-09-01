@@ -43,6 +43,25 @@ is not a codebase that will outrun us.
 
 ---
 
+## 1a. Scope: mapping, the verb
+
+*Operator, 2026-09-01, correcting my framing.*
+
+> **This is not a map mod. It is a mapping mod.**
+
+A map mod throws a minimap on screen. There are countless of those. **If a change improves a
+standard Minecraft feature related to mapping — the activity, not the object — it is in the
+wheelhouse.** Whether it earns its place is a separate question, judged on its own merit.
+
+This matters because it changes which arguments are valid. I rejected force-loading chunks for
+the spyglass on the grounds that it was "a cost that does not belong in a map mod". That is
+scope reasoning standing in for a cost/benefit judgement it has not actually made. The real
+question was whether surveying distant terrain is worth what it costs, and the answer might be
+yes.
+
+**The test to apply instead:** does this make the act of mapping better? If so, cost is an
+engineering problem to be measured, not grounds for dismissal.
+
 ## 2. Fork posture
 
 **Settled: hard fork, new mod id, `upstream` kept as a git remote.**
@@ -723,16 +742,37 @@ different direction: rather than widening the scan for everyone, it lets a playe
 to reveal what they can actually see. Better fiction than a bigger radius, and self-limiting,
 since terrain stops the ray.
 
-**Check this before building: chunks the server has not loaded cannot be painted.**
-`MapItemMixin` already substitutes a dummy chunk when `hasChunk` fails, and vanilla skips
-empty chunks. Server view distance is typically 10 to 12 chunks, 160 to 192 blocks, so a
-spyglass would survey to roughly **min(raycast hit, view distance)** rather than as far as the
-eye can see.
+**The constraint: chunks the server has not loaded cannot be painted.** `MapItemMixin`
+substitutes a dummy chunk when `hasChunk` fails, and vanilla skips empty chunks. Server view
+distance is typically 10 to 12 chunks, 160 to 192 blocks, so the naive version surveys to
+**min(raycast hit, view distance)**, well short of what the fiction promises.
 
-Not fatal, and arguably right — from a tower you would map to the loaded frontier, which is
-the most that could be shown. But it caps the feature well below what the fiction promises.
-Force-loading chunks along the ray would lift the cap at a cost that does not belong in a map
-mod.
+**Distant Horizons shows the way past it.** *(Operator's reference. It renders far terrain by
+pulling from world generation rather than from loaded chunks.)* The same trick applies here,
+and Minecraft's own chunk pipeline already exposes the seam: chunks have **statuses**, and a
+map needs far less than `FULL`.
+
+| What we need | Cheapest status that provides it |
+|---|---|
+| Surface heightmap and top block | `SURFACE` — noise and surface rules, no features |
+| Trees, ores, structures (so forests look like forests) | `FEATURES` |
+| Lighting, entities, block entities | `FULL` — **not needed for colour** |
+
+So the tiers, cheapest first:
+
+1. **Chunk loaded** — use it. Today's behaviour.
+2. **Generated and on disk, not loaded** — read without a full load. Cheap, and the common
+   case on a pregenerated server or anywhere the player has already been.
+3. **Never generated** — generate to a reduced status. Real cost, and the only tier that
+   needs throttling and a background thread.
+
+**Requiring Distant Horizons is out** — it is heavy on weaker machines without careful config,
+per the operator. Borrowing the idea is not.
+
+**Worth being honest about which tier matters.** Tier 2 sounds ideal but is nearly pointless:
+ground you have already generated is usually ground you have already mapped. The spyglass's
+whole appeal is surveying a mountain range you have *never visited*, which is tier 3, the
+expensive one. That is the measurement that decides the feature.
 
 **The other unknown is where the painting happens.** `MapItem.update` is viewer-centred, so
 surveying a distant point means faking a viewer there or writing our own scan — the same wall
