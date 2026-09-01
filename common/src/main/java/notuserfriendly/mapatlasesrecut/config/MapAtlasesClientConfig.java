@@ -93,6 +93,10 @@ public class MapAtlasesClientConfig {
                 .define("only_show_north_cardinal", false);
         miniMapBorder = builder.comment("Shows map separation borders")
                 .define("map_borders", true);
+        drawCoarseLayers = builder.comment("Draw layers coarser than the atlas's finest, underneath it. Turn off to see only the detailed maps")
+                .define("draw_coarse_layers", true);
+        drawFinestLayerOnly = builder.comment("Skip a coarse map entirely when the atlas already holds finer maps covering the same ground. Saves drawing what is hidden anyway")
+                .define("draw_only_where_no_finer", false);
 
         minimapSkyLight = builder.comment("Use sky color for minimap")
                 .define("darken_at_night", false);
@@ -212,6 +216,8 @@ public class MapAtlasesClientConfig {
     public static final Supplier<Boolean> drawMinimapCardinals;
     public static final Supplier<Boolean> miniMapOnlyNorth;
     public static final Supplier<Boolean> miniMapBorder;
+    public static final Supplier<Boolean> drawCoarseLayers;
+    public static final Supplier<Boolean> drawFinestLayerOnly;
     public static final Supplier<Boolean> minimapSkyLight;
     public static final Supplier<Boolean> mapChangeSound;
     public static final Supplier<Boolean> automaticSlice;

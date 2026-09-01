@@ -21,6 +21,7 @@ import org.joml.Matrix4f;
 import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
 import notuserfriendly.mapatlasesrecut.utils.MapType;
 
+import notuserfriendly.mapatlasesrecut.config.MapAtlasesClientConfig;
 import notuserfriendly.mapatlasesrecut.map_collection.MapCollection;
 
 import java.util.AbstractMap;
@@ -113,6 +114,7 @@ public abstract class AbstractAtlasDisplay {
         // lands on the same world coordinates regardless of cell size.
         byte ref = refScale();
         double refBlocksPerPixel = 1 << ref;
+        boolean skipIfFinerCovers = MapAtlasesClientConfig.drawFinestLayerOnly.get();
 
         for (byte layer : layersCoarsestFirst()) {
             float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
@@ -135,6 +137,7 @@ public abstract class AbstractAtlasDisplay {
 
                     MapDataHolder state = getMapAtLayer(cx, cz, layer);
                     if (state == null) continue;
+                    if (skipIfFinerCovers && layer > ref && isCoveredByFiner(cx, cz, layer, ref)) continue;
 
                     boolean drawPlayerIcons = !this.drawBigPlayerMarker
                             && state.data.dimension.equals(player.level().dimension());
@@ -205,6 +208,29 @@ public abstract class AbstractAtlasDisplay {
         graphics.enableScissor(x, y, x1, y1);
     }
 
+    /**
+     * True when every finer cell overlapping this coarse one exists, so the coarse map would
+     * be completely hidden anyway. Checked at the layer immediately below, not all the way
+     * down, because that is where the covering actually has to be complete.
+     */
+    private boolean isCoveredByFiner(int cx, int cz, byte layer, byte ref) {
+        byte finer = (byte) (layer - 1);
+        if (finer < ref) finer = ref;
+        int finerBlocks = MAP_DIMENSION << finer;
+        int coarseBlocks = MAP_DIMENSION << layer;
+        int perSide = coarseBlocks / finerBlocks;
+        int originX = cx - coarseBlocks / 2 + finerBlocks / 2;
+        int originZ = cz - coarseBlocks / 2 + finerBlocks / 2;
+        for (int a = 0; a < perSide; a++) {
+            for (int b = 0; b < perSide; b++) {
+                if (getMapAtLayer(originX + a * finerBlocks, originZ + b * finerBlocks, finer) == null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     /** The map covering this world centre at exactly this layer, or null. */
     @Nullable
     public abstract MapDataHolder getMapAtLayer(int centerX, int centerZ, byte scale);
@@ -216,6 +242,10 @@ public abstract class AbstractAtlasDisplay {
     protected static Iterable<Byte> coarsestFirst(MapCollection maps) {
         List<Byte> ordered = new ArrayList<>(maps.getScales());
         Collections.reverse(ordered);
+        if (!MapAtlasesClientConfig.drawCoarseLayers.get() && ordered.size() > 1) {
+            // keep only the finest, which getScales() puts last before the reverse
+            return List.of(ordered.get(ordered.size() - 1));
+        }
         return ordered;
     }
 
