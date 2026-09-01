@@ -78,6 +78,10 @@ public abstract class UpdateScheduler {
 
     private static final AtomicLong SCANNED = new AtomicLong();
     private static final AtomicLong SKIPPED = new AtomicLong();
+    // per map, not per tick: SKIPPED only moves when every map in view is settled at once,
+    // which hides the case where eight of nine are
+    private static final AtomicLong CONSIDERED = new AtomicLong();
+    private static final AtomicLong SETTLED = new AtomicLong();
     private static volatile long lastReportTick = 0L;
 
     /** Columns MapItem.update samples per call, constant across map scales. */
@@ -90,6 +94,8 @@ public abstract class UpdateScheduler {
         lastReportTick = gameTime;
         long scanned = SCANNED.getAndSet(0);
         long skipped = SKIPPED.getAndSet(0);
+        long considered = CONSIDERED.getAndSet(0);
+        long settled = SETTLED.getAndSet(0);
         long total = scanned + skipped;
         if (total == 0) {
             // Silence here is ambiguous: it could mean the feature works, or that map
@@ -101,8 +107,10 @@ public abstract class UpdateScheduler {
             return;
         }
         MapAtlasesMod.LOGGER.info(
-                "map scans in last {}s: {} performed, {} skipped ({}%), ~{} column samples avoided",
-                REPORT_PERIOD / 20, scanned, skipped, (100 * skipped) / total, skipped * COLUMNS_PER_SCAN);
+                "map scans in last {}s: {} performed, {} whole ticks skipped. "
+                        + "per map: {} considered, {} already painted ({}%)",
+                REPORT_PERIOD / 20, scanned, skipped, considered, settled,
+                considered == 0 ? 0 : (100 * settled) / considered);
     }
 
     /**
@@ -116,6 +124,13 @@ public abstract class UpdateScheduler {
      * one of those scans repaints identical pixels.
      */
     protected boolean needsUpdate(ServerPlayer player, MapDataHolder holder) {
+        CONSIDERED.incrementAndGet();
+        boolean needed = computeNeedsUpdate(player, holder);
+        if (!needed) SETTLED.incrementAndGet();
+        return needed;
+    }
+
+    private boolean computeNeedsUpdate(ServerPlayer player, MapDataHolder holder) {
         if (!MapAtlasesConfig.skipUnchangedMaps.get()) return true;
         ScanState state = state(holder);
         if (state.lastScan < 0) return true;

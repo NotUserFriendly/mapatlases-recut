@@ -229,7 +229,10 @@ public class MapAtlasesHUD extends AbstractAtlasDisplay {
             poseStack.mulPose(Axis.ZN.rotationDegrees(180 - yRot));
         }
         if (drawBigPlayerMarker) {
-            poseStack.translate(-4.5f, -4f, 0);
+            // whole pixels: a half-pixel offset makes the leftmost column sample just
+            // outside this sprite's rect in the GUI atlas and pick up its neighbour,
+            // which shows as a one pixel opaque line down the left side
+            poseStack.translate(-4f, -4f, 0);
             graphics.blitSprite(MapAtlasesClient.PLAYER_MARKER_SPRITE, 0, 0, 8, 8);
         }
         poseStack.popPose();

@@ -44,7 +44,7 @@ public class MapAtlasesClientConfig {
 
         miniMapAnchoring = builder
                 .comment("Controls anchor position of mini-map")
-                .define("anchoring", Anchoring.UPPER_LEFT);
+                .define("anchoring", Anchoring.UPPER_RIGHT);
 
         miniMapHorizontalOffset = builder
                 .comment("An integer which will offset the mini-map horizontally")
