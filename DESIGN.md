@@ -710,6 +710,35 @@ destroy a working atlas by accident, because the first cut only refunds paper.
 workaround for clunky multi-atlas management. Settled 2026-08-29: neither. It solves
 the uninstall problem, which nothing else does.)*
 
+**T3.2a — Spyglass surveying: map what you can see.** *Operator's idea, 2026-09-01, to be
+measured before building. Writing it down already turned up a hard limit.*
+
+Looking through a spyglass maps terrain in the direction you face, out to wherever a raycast
+from your eye first hits a block. Stand in a river valley and you survey as far as the bank;
+stand on a tower and you survey the vicinity.
+
+**Why it is strong.** It gives elevation a mechanical reward, which Minecraft almost never
+does, and it is *earned* range rather than granted. It also attacks §5.3's fill problem from a
+different direction: rather than widening the scan for everyone, it lets a player spend effort
+to reveal what they can actually see. Better fiction than a bigger radius, and self-limiting,
+since terrain stops the ray.
+
+**Check this before building: chunks the server has not loaded cannot be painted.**
+`MapItemMixin` already substitutes a dummy chunk when `hasChunk` fails, and vanilla skips
+empty chunks. Server view distance is typically 10 to 12 chunks, 160 to 192 blocks, so a
+spyglass would survey to roughly **min(raycast hit, view distance)** rather than as far as the
+eye can see.
+
+Not fatal, and arguably right — from a tower you would map to the loaded frontier, which is
+the most that could be shown. But it caps the feature well below what the fiction promises.
+Force-loading chunks along the ray would lift the cap at a cost that does not belong in a map
+mod.
+
+**The other unknown is where the painting happens.** `MapItem.update` is viewer-centred, so
+surveying a distant point means faking a viewer there or writing our own scan — the same wall
+§5.3 hit over partial rescans. The raycast itself is cheap: one block step per block travelled,
+against a 4096 column scan. It is the mapping that needs designing. → **D33.**
+
 **T3.3 — Leyline Sensor (item).** While held, the nearest three defined waypoints
 render in the world. Closes one of the four real parity gaps in §3, and is the
 in-world half of the pin system that already exists on the map.
@@ -2600,10 +2629,13 @@ what is possible; re-check after any upstream merge.
 - `MapType.getCenter(px, pz, width)` snaps to that grid. World-generated maps
   (shipwreck, buried treasure, explorer) are centred on their structure at arbitrary
   coordinates and will never align.
-- `MapCollection` has one `byte scale`, set from the first map added, and
-  `populateInDataStructure` silently rejects `d.scale != scale`. **An atlas's scale is
-  fixed at craft time, forever** — `MapAtlasCreateRecipe` builds a blank atlas and
-  adds the crafted-in filled map, which sets the scale.
+- ~~`MapCollection` has one `byte scale` … **an atlas's scale is fixed at craft time,
+  forever**~~ — **both removed.** The rejection went in `e04fe89` so a collection can hold
+  layers; **crafted scale itself went 2026-09-01.** It was an arbitrary limit that fought the
+  design at every step: it blocked layers, forced a "not finer than crafted" bound on which
+  layers an atlas may fill, and makes the cartography table refuse maps of the wrong scale.
+  Atlases now craft at the **coarsest** scale and no other, and which layers they fill is a
+  player choice (`map_layer_scale_0..4`). *Loose ends in **D32**.*
 - One map per cell: the selection model is `maps.get(key)`; duplicates have no defined
   render order, which is why they're rejected.
 - `MapItemSavedData.scaled()` calls `createFresh(...)` — **vanilla zoom-out discards
@@ -2916,6 +2948,20 @@ makes modded stone work); do naturally-generated leylines use the same inscribed
 because it makes the `EMPTY_MAPS` stacking bug class impossible rather than fixed. Costs:
 carrying paper and compacted paper together, the loan needing a small component of its own,
 and lectern atlases no longer expanding. See T1.1a.
+
+**D32 — Follow through on removing crafted scale.** `MapAtlasCreateRecipe` still derives an
+atlas's scale from the filled map crafted into it, and the cartography table still refuses a
+filled map of differing scale. Neither makes sense now an atlas holds layers. Crafting should
+produce a coarsest-scale atlas without needing a filled map at all, which also removes the
+awkwardness that a scale 4 map takes four zoom steps to produce.
+
+**D33 — Spyglass surveying: measure first.** Raycast cost is small. The open questions are
+whether server view distance caps the reach too tightly to be worth it, and how to paint a
+region the player is not standing in when vanilla's scan is viewer-centred.
+
+**D34 — Warn when a maintained layer is being ignored.** With `limit_to_two_layers` on,
+ticking a middle layer silently does nothing. That needs to be visible once the toggles become
+checkboxes, not discovered.
 
 **D29 — Surveyor access control.** Anyone can absorb; fine for a shared base, wrong for a
 public server. A vanilla lock component is the cheap answer.
