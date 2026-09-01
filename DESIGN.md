@@ -286,11 +286,29 @@ there are two real wins behind it — one of which is bigger than the one propos
 
 **Why Xaero and JourneyMap are fast.** Not because they're client-side per se. Because
 they **scan each chunk once, when it loads or changes**, and cache the result to disk.
-Vanilla does the opposite: `MapItem.update` **rescans the same region on every
-update** — 65,536 column samples, every time, over terrain that has not changed since
-the last pass. (Derivation: pixels scanned is `(256 >> scale)²` and columns per pixel
-is `(1 << scale)²`; the product is `256²` at every scale. §5.3.) That is why
-`map_updates_per_tick` defaults to **1**.
+Vanilla does the opposite: `MapItem.update` **rescans the same region forever**, whether
+or not anything there has changed.
+
+*Corrected 2026-09-01, from the decompiled source.* An earlier draft here said 65,536
+column samples **per update**. The real figure is **4,096 per update**, because the outer
+strip loop only processes `(k1 & 15) == (step & 15)` — one x-strip in sixteen — so a full
+refresh is spread over 16 calls. 65,536 is the cost of that **complete sweep**, not of one
+update.
+
+Both figures are scale-invariant, which is the part that matters:
+
+| scale | strips/update | l1 iters | columns/pixel | samples/update | full sweep |
+|---|---|---|---|---|---|
+| 0 | 15.9 | 257 | 1 | 4,096 | 65,535 |
+| 2 | 3.9 | 65 | 16 | 4,095 | 65,520 |
+| 4 | 0.9 | 17 | 256 | 4,080 | 65,280 |
+
+The scan region is 256x256 blocks at every scale. Note scale 4 processes **less than one
+strip per call**, so most updates there do nothing at all.
+
+This does not change the conclusion, only its size: the waste is that the sweep repeats
+indefinitely over unchanged terrain, and `map_updates_per_tick` defaults to **1** because
+of it.
 
 So the gap is *rescan vs. scan-on-change*, and that reframes all three options:
 

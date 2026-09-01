@@ -39,11 +39,15 @@ public class WeightedUpdateScheduler extends UpdateScheduler {
 
     @Nullable
     @Override
-    protected MapDataHolder poll() {
+    protected MapDataHolder poll(ServerPlayer player) {
         // Sort tickets by priority descending
         if (tickets.isEmpty()) return null;
         selectionBuffer.clear();
-        selectionBuffer.addAll(tickets.values());
+        for (UpdateTicket ticket : tickets.values()) {
+            if (needsUpdate(player, ticket.holder)) selectionBuffer.add(ticket);
+        }
+        // everything in view is already painted and nothing near the player has changed
+        if (selectionBuffer.isEmpty()) return null;
         selectionBuffer.sort(UpdateTicket.COMPARATOR.reversed());
 
         UpdateTicket first = selectionBuffer.getFirst();

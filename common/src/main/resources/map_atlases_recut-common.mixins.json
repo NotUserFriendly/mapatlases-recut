@@ -13,6 +13,7 @@
     "CraftingInputMixin",
     "LecternBlockEntityMixin",
     "LecternBlockMixin",
+    "LevelChunkMixin",
     "MapItemMixin",
     "MapItemSavedDataAccessor",
     "MapItemSavedDataMixin",

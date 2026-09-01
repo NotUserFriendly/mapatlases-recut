@@ -35,13 +35,16 @@ public class RoundRobinUpdateScheduler extends UpdateScheduler {
 
     @Nullable
     @Override
-    protected MapDataHolder poll() {
+    protected MapDataHolder poll(ServerPlayer player) {
         if (ticketQueue.isEmpty()) return null;
 
-        // Pop from front, update, push to back
-        MapDataHolder ticket = ticketQueue.pollFirst();
-
-        ticketQueue.addLast(ticket);
-        return ticket;
+        // Pop from front, update, push to back. Rotate past maps that are already painted
+        // and sitting over unchanged ground, at most once round the queue.
+        for (int attempts = ticketQueue.size(); attempts > 0; attempts--) {
+            MapDataHolder ticket = ticketQueue.pollFirst();
+            ticketQueue.addLast(ticket);
+            if (needsUpdate(player, ticket)) return ticket;
+        }
+        return null;
     }
 }

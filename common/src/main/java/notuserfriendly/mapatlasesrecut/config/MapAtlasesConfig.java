@@ -67,6 +67,8 @@ public class MapAtlasesConfig {
                 .define("update_priority", UpdateFashion.SMART);
         mapUpdatePerTick = builder.comment("Max of maps to update each tick. Increase to make maps update faster")
                 .define("map_updates_per_tick", 1, 0, 100);
+        skipUnchangedMaps = builder.comment("Skip rescanning a map whose picture is already complete when no block near the player has changed since it was last scanned. Large saving when standing still or crossing explored ground")
+                .define("skip_unchanged_maps", true);
 
         mapRange = builder.comment("Range multiplier of the map update. Logic affects all maps, atlas or not. Change to make the range smaller or bigger")
                 .define("map_range_multiplier", 1, 0.0001, 10);
@@ -101,6 +103,7 @@ public class MapAtlasesConfig {
     public static final Supplier<Boolean> entityRadar;
     public static final Supplier<String> pinMarkerId;
     public static final Supplier<Integer> mapUpdatePerTick;
+    public static final Supplier<Boolean> skipUnchangedMaps;
     public static final Supplier<Double> mapRange;
     public static final Supplier<ActivationLocation> activationLocation;
 
