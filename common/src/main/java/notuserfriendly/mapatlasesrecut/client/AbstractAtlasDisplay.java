@@ -124,15 +124,15 @@ public abstract class AbstractAtlasDisplay {
         // showing coarse ones while zoomed in gives a chunk wide band. Pick by apparent size.
         byte outlineLayer = pickOutlineLayer(ref, zoomLevelDim);
 
+        List<Matrix4f> emptyCells = new ArrayList<>();
         if (showBorders) {
             collectOutlineCells(outlineLayer, ref, refBlocksPerPixel, zoomLevelDim, type,
-                    intXCenter, intZCenter, poseStack, outlineHack, selectedKey);
-            // Underlay first, in black. The separator sprite is pale, so over blank parchment
-            // it is invisible -- which is why the grid over empty cells appeared to be missing
-            // rather than merely faint. Drawn again in white over the maps afterwards.
+                    intXCenter, intZCenter, poseStack, outlineHack, emptyCells, selectedKey);
+            // Black, underneath, and only where no map covers the cell. Drawing it everywhere
+            // meant the pale pass on top blended over all of it, which read as the top grid
+            // having been darkened and the black one having gone missing.
             VertexConsumer underVC = MapAtlasesClient.MAP_BORDER_TEXTURE.buffer(vcp, RenderType::text);
-            for (var m : outlineHack.getFirst()) drawOutline(m, underVC, 0, 0, 0);
-            for (var m : outlineHack.getSecond()) drawOutline(m, underVC, 0, 0, 0);
+            for (var m : emptyCells) drawOutline(m, underVC, 0, 0, 0);
             vcp.endBatch();
         }
 
@@ -242,6 +242,7 @@ public abstract class AbstractAtlasDisplay {
                                      float zoomLevelDim, MapType type,
                                      int intXCenter, int intZCenter, PoseStack poseStack,
                                      Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
+                                     List<Matrix4f> emptyCells,
                                      @Nullable MapItemSavedData selectedKey) {
         float factor = outlineLayer >= ref
                 ? (1 << (outlineLayer - ref))
@@ -268,8 +269,12 @@ public abstract class AbstractAtlasDisplay {
                 Matrix4f m = new Matrix4f(poseStack.last().pose());
                 poseStack.popPose();
 
+                // A cell with no map keeps only the dark underlay; one with a map keeps only
+                // the pale overlay. Nothing gets both, so neither washes the other out.
                 MapDataHolder here = getMapAtLayer(cx, cz, outlineLayer);
-                if (here != null && here.data == selectedKey) {
+                if (here == null) {
+                    emptyCells.add(m);
+                } else if (here.data == selectedKey) {
                     outlineHack.getSecond().add(m);
                 } else {
                     outlineHack.getFirst().add(m);

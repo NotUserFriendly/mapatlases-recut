@@ -153,19 +153,29 @@ public class MapAtlasesServerEvents {
     }
 
     /**
-     * Scales this atlas keeps up to date: everything it already holds, plus a coarse base
-     * layer underneath.
+     * Scales this atlas fills in as the player travels.
      * <p>
-     * The base is what makes the world stop being blank where you merely passed nearby. A
-     * base cell spans 2048 blocks against a scale 0 cell's 128, so it is created about one
-     * time in 256 and costs correspondingly little to maintain.
+     * Everything it already holds keeps updating, plus any enabled scale no finer than what it
+     * was crafted at. The finer bound matters: an atlas's scale is fixed at craft time, and
+     * enabling scale 0 should not silently give a scale 2 atlas detail it was never meant to
+     * have.
      */
     private static Collection<Byte> layersToMaintain(MapCollection maps) {
-        TreeSet<Byte> layers = new TreeSet<>(maps.getScales());
-        if (layers.isEmpty()) layers.add((byte) 0);
-        int base = MapAtlasesConfig.baseLayerScale.get();
-        if (base >= 0 && layers.first() < base) {
-            layers.add((byte) base);
+        TreeSet<Byte> existing = new TreeSet<>(maps.getScales());
+        if (existing.isEmpty()) existing.add((byte) 0);
+        byte finest = existing.first();
+
+        TreeSet<Byte> layers = new TreeSet<>(existing);
+        for (byte sc = finest; sc <= 4; sc++) {
+            if (MapAtlasesConfig.maintainLayer[sc].get()) layers.add(sc);
+        }
+
+        // "a detail layer over a base" is the design; more than two is allowed but opt in
+        if (MapAtlasesConfig.limitToTwoLayers.get() && layers.size() > 2) {
+            TreeSet<Byte> pair = new TreeSet<>();
+            pair.add(layers.first());
+            pair.add(layers.last());
+            return pair;
         }
         return layers;
     }
