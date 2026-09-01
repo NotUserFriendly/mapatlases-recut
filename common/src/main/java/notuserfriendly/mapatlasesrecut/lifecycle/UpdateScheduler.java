@@ -72,6 +72,29 @@ public abstract class UpdateScheduler {
             scanned.paintedCache = ScanState.UNKNOWN;
         }
         maybeReport(player.level().getGameTime());
+        maybeProbe(player, visible);
+    }
+
+    // PROBE -- delete once the skip rate is understood. Dumps, per map in view, how much of
+    // the region a scan would write is still blank, so "the check is wrong" can be told apart
+    // from "the map genuinely is not painted yet".
+    private static long lastProbeTick = 0L;
+
+    private void maybeProbe(ServerPlayer player, List<MapDataHolder> visible) {
+        if (!MapAtlasesConfig.logScanStats.get()) return;
+        long now = player.level().getGameTime();
+        if (now - lastProbeTick < REPORT_PERIOD) return;
+        lastProbeTick = now;
+        boolean ceiling = player.level().dimensionType().hasCeiling();
+        MapAtlasesMod.LOGGER.info("PROBE player=({}, {}) maps in view={}",
+                (int) player.getX(), (int) player.getZ(), visible.size());
+        for (MapDataHolder h : visible) {
+            ScanState st = state(h);
+            var d = ScanRegion.diagnose(player, h.data, ceiling);
+            MapAtlasesMod.LOGGER.info("PROBE   map {} scale={} center=({}, {}) {} lastScan={} nearbyChange={}",
+                    h.id.id(), h.data.scale, h.data.centerX, h.data.centerZ, d,
+                    st.lastScan, latestNearbyChange);
+        }
     }
 
     // --- measurement, for the profiling gate ---------------------------------------
