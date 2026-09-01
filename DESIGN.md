@@ -412,14 +412,24 @@ every component equal. Two causes:
   equality is order-sensitive**, so two atlases covering identical territory don't
   stack unless the ids are in the same order. Sorting `ids` is safe once T0.1
   guarantees one entry per cell.
-- `SELECTED_SLICES` remembers the dimension and slice last viewed. Open one atlas and
-  not the other and they stop stacking. `Slice` is `(MapType, Optional<Integer>
-  height, dimension)` — **no x/z at all** — so in a world with no Supplementaries and
-  no Twilight Forest, a Slice is always `(VANILLA, empty, dim)` and the component
-  degenerates to "which dimensions has this been carried through," which nothing
-  reads. Strip degenerate entries to absent. **Guard on
-  `!isLoaded("supplementaries") && !isLoaded("twilightforest")`** so it disables
-  itself rather than discarding real slice state.
+- **Components that carry state describing nothing.** *(Corrected 2026-09-01 after
+  reading the code; the earlier `SELECTED_SLICES` explanation was wrong for the
+  vanilla case, which is where the failure was originally observed.)*
+  - `EmptyMaps.addAndAssigns` never drops a key, so an atlas that spent its last paper
+    holds `{VANILLA: 0}` where a fresh one holds `{}`. The pity-count write in
+    `maybeCreateNewMapEntry` does the same to *any* atlas holding no maps on the first
+    tick a player carries it. **This is the vanilla-reachable cause.**
+  - `MapCollection` kept a key whose list had been emptied, so `{VANILLA: []}` versus
+    `{}`.
+  - `SelectedSlices.removeAndAssigns` stored an empty component rather than removing
+    it. Only reachable with Supplementaries or Twilight Forest, since
+    `setSelectedSlice` refuses to store a `(VANILLA, no height)` slice at all — so the
+    once-planned "strip degenerate entries behind an `isLoaded` guard" was a no-op in
+    both directions and was dropped.
+
+  All three are fixed by normalising identity, because
+  **`PatchedDataComponentMap.set` deletes the patch entry outright once the value
+  compares equal to the item's prototype.** No call site needed changing.
 
 ### Tier 1 — economy and ergonomics
 

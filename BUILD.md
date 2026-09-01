@@ -112,7 +112,12 @@ should be a supported configuration, not an accident.
       no-op.** `setSelectedSlice` already refuses to store a `(VANILLA, no height)` slice, so
       a vanilla-only atlas never writes the component, and the guard would have disabled the
       fix exactly when Supplementaries or Twilight Forest make slices real.
-- [x] **The real bug underneath it** (`085b52c`): `SelectedSlices.removeAndAssigns` stored an
+- [x] **Three identity bugs blocking stacking** (`528ac11`, `085b52c`). `EmptyMaps`
+      `{VANILLA: 0}` vs `{}` and `MapCollection` `{VANILLA: []}` vs `{}` are the
+      vanilla-reachable ones and explain the originally reported failure. All fixed by
+      normalising `equals`, since `PatchedDataComponentMap.set` drops the patch entry
+      once a value matches the prototype.
+- [x] **And the SELECTED_SLICES one** (`085b52c`): `SelectedSlices.removeAndAssigns` stored an
       *empty* component instead of removing it. The atlas's only default components are
       `EMPTY_MAPS` and `MAP_COLLECTION`, so an emptied `SELECTED_SLICES` leaves a data patch a
       fresh atlas lacks, and the two stop stacking. Needs no mod guard. Not sent upstream
