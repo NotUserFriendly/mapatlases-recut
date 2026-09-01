@@ -117,13 +117,12 @@ public abstract class AbstractAtlasDisplay {
         double refBlocksPerPixel = 1 << ref;
         boolean skipIfFinerCovers = MapAtlasesClientConfig.drawFinestLayerOnly.get();
 
-        // Borders come from the finest visible layer only. The outline texture is a 128 unit
-        // sprite drawn through the same transform as its map, so a coarse layer scales its
-        // dotted separator by 2^(s - ref) as well -- at scale 4 over scale 0 that is a chunk
-        // wide pale band. And outlines draw after every layer, so it lands on top of the
-        // detail rather than behind it.
-        byte outlineLayer = ref;
-        for (byte candidate : layersCoarsestFirst()) outlineLayer = candidate;
+        // Which layer's separators to draw, chosen by zoom. Drawing them over everything is
+        // correct -- they are a reading aid, not terrain -- but the outline sprite is pushed
+        // through the same transform as its map, so a coarse layer's separator is scaled by
+        // 2^(s - ref) too. Showing fine separators while zoomed out gives unreadable density;
+        // showing coarse ones while zoomed in gives a chunk wide band. Pick by apparent size.
+        byte outlineLayer = pickOutlineLayer(ref, zoomLevelDim);
 
         for (byte layer : layersCoarsestFirst()) {
             float factor = layer >= ref ? (1 << (layer - ref)) : 1f / (1 << (ref - layer));
@@ -144,16 +143,40 @@ public abstract class AbstractAtlasDisplay {
                     if (Math.abs(cx - currentXCenter) - halfCell > halfSpanBlocks) continue;
                     if (Math.abs(cz - currentZCenter) - halfCell > halfSpanBlocks) continue;
 
+                    boolean isOutlineLayer = layer == outlineLayer;
                     MapDataHolder state = getMapAtLayer(cx, cz, layer);
-                    if (state == null) continue;
-                    if (skipIfFinerCovers && layer > ref && isCoveredByFiner(cx, cz, layer, ref)) continue;
+                    if (state == null && !isOutlineLayer) continue;
+                    if (state != null && skipIfFinerCovers && layer > ref
+                            && isCoveredByFiner(cx, cz, layer, ref)) {
+                        state = null;
+                        if (!isOutlineLayer) continue;
+                    }
 
-                    boolean drawPlayerIcons = !this.drawBigPlayerMarker
-                            && state.data.dimension.equals(player.level().dimension());
                     double px = (cx - currentXCenter) / refBlocksPerPixel;
                     double pz = (cz - currentZCenter) / refBlocksPerPixel;
-                    drawMapAt(player, poseStack, vcp, layer == outlineLayer ? outlineHack : null,
-                            px, pz, factor, state, drawPlayerIcons, light, selectedKey);
+
+                    if (state != null) {
+                        boolean drawPlayerIcons = !this.drawBigPlayerMarker
+                                && state.data.dimension.equals(player.level().dimension());
+                        drawMapAt(player, poseStack, vcp, px, pz, factor, state,
+                                drawPlayerIcons, light, selectedKey);
+                    }
+
+                    // Outline every cell of this layer, drawn or not, so empty ground shows a
+                    // grid of where maps would go rather than blank parchment.
+                    if (isOutlineLayer && showBorders) {
+                        poseStack.pushPose();
+                        poseStack.translate(px - MAP_DIMENSION * factor / 2.0,
+                                pz - MAP_DIMENSION * factor / 2.0, 0);
+                        poseStack.scale(factor, factor, 1);
+                        Matrix4f m = new Matrix4f(poseStack.last().pose());
+                        if (state != null && state.data == selectedKey) {
+                            outlineHack.getSecond().add(m);
+                        } else {
+                            outlineHack.getFirst().add(m);
+                        }
+                        poseStack.popPose();
+                    }
                 }
             }
             // Flush before the next layer so painter's order actually holds. Each map has its
@@ -218,6 +241,29 @@ public abstract class AbstractAtlasDisplay {
     }
 
     /**
+     * Layer whose separators to draw, by apparent cell size.
+     * <p>
+     * A layer-s cell occupies {@code width * 2^(s - ref) / zoom} of the widget, so the finest
+     * layer still covering a readable fraction is the one worth dividing. Zooming out walks
+     * this up through the layers on its own.
+     */
+    private byte pickOutlineLayer(byte ref, float zoom) {
+        byte chosen = ref;
+        boolean any = false;
+        for (byte layer : layersCoarsestFirst()) {
+            float cellFraction = (float) Math.pow(2, layer - ref) / Math.max(zoom, 0.001f);
+            if (!any || cellFraction >= MIN_OUTLINE_CELL_FRACTION) {
+                if (!any || layer <= chosen) chosen = layer;
+                any = true;
+            }
+        }
+        return chosen;
+    }
+
+    /** Below roughly six cells across the widget, separators stop being readable. */
+    private static final float MIN_OUTLINE_CELL_FRACTION = 1f / 6f;
+
+    /**
      * True when every finer cell overlapping this coarse one exists, so the coarse map would
      * be completely hidden anyway. Checked at the layer immediately below, not all the way
      * down, because that is where the covering actually has to be complete.
@@ -269,7 +315,6 @@ public abstract class AbstractAtlasDisplay {
             Player player,
             PoseStack poseStack,
             MultiBufferSource.BufferSource vcp,
-            @Nullable Pair<List<Matrix4f>, List<Matrix4f>> outlineHack,
             double px, double pz, float factor,
             MapDataHolder state,
             boolean drawPlayerIcons,
@@ -328,14 +373,6 @@ public abstract class AbstractAtlasDisplay {
                         false,//(1+ix+iy)*50
                         light //
                 );
-
-        if (outlineHack != null) {
-            if (state.data == selectedData) {
-                outlineHack.getSecond().add(new Matrix4f(poseStack.last().pose()));
-            } else {
-                outlineHack.getFirst().add(new Matrix4f(poseStack.last().pose()));
-            }
-        }
 
         poseStack.popPose();
         // Re-add the off-map player icons after render
