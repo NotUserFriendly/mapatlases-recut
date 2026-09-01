@@ -8,6 +8,7 @@ import net.minecraft.world.phys.Vec2;
 import notuserfriendly.mapatlasesrecut.MapAtlasesMod;
 import notuserfriendly.mapatlasesrecut.config.MapAtlasesConfig;
 import notuserfriendly.mapatlasesrecut.utils.ChunkChangeIndex;
+import notuserfriendly.mapatlasesrecut.utils.ScanRegion;
 import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
 
 import java.util.HashMap;
@@ -50,34 +51,25 @@ public abstract class UpdateScheduler {
         latestNearbyChange = -1L;
         scanStates.keySet().retainAll(visible.stream().map(m -> m.id).toList());
 
-        // A scan paints what is reachable from where the player stands, so moving even one
-        // pixel's worth of blocks exposes new ground and restarts the sweep.
-        int px = player.getBlockX();
-        int pz = player.getBlockZ();
-        for (MapDataHolder holder : visible) {
-            ScanState st = state(holder);
-            int pixel = 1 << holder.data.scale;
-            if (st.anchorX == Integer.MIN_VALUE
-                    || Math.abs(px - st.anchorX) >= pixel
-                    || Math.abs(pz - st.anchorZ) >= pixel) {
-                st.anchorX = px;
-                st.anchorZ = pz;
-                st.sweepsAtAnchor = 0;
-            }
-        }
 
         while (accumulator >= 1f) {
             MapDataHolder next = poll(player);
             accumulator -= 1f;
             if (next == null) {
                 SKIPPED.incrementAndGet();
+                // The colour scan is what we are avoiding, not the markers. Entity radar and
+                // pins ride on the same call, so keep them ticking or they freeze wherever
+                // the terrain happened to settle.
+                for (MapDataHolder holder : visible) {
+                    holder.updateMarkersOnly(player);
+                }
                 break;
             }
             SCANNED.incrementAndGet();
             next.updateMapColorsAndMarkers(player);
             ScanState scanned = state(next);
             scanned.lastScan = player.level().getGameTime();
-            scanned.sweepsAtAnchor++;
+            scanned.paintedCache = ScanState.UNKNOWN;
         }
         maybeReport(player.level().getGameTime());
     }
@@ -93,7 +85,7 @@ public abstract class UpdateScheduler {
     private static final long REPORT_PERIOD = 200L;
 
     private static void maybeReport(long gameTime) {
-        if (!MapAtlasesConfig.debugUpdate.get()) return;
+        if (!MapAtlasesConfig.logScanStats.get()) return;
         if (gameTime - lastReportTick < REPORT_PERIOD) return;
         lastReportTick = gameTime;
         long scanned = SCANNED.getAndSet(0);
@@ -114,22 +106,20 @@ public abstract class UpdateScheduler {
     }
 
     /**
-     * False when scanning again would repaint identical pixels.
+     * False when scanning would repaint pixels that are already painted and still correct.
      * <p>
-     * MapItem.update paints one x-strip in sixteen per call, chosen by a step counter, and
-     * only within reach of the viewer. So {@value #STRIPS} consecutive scans from one spot
-     * paint everything that spot can reach; past that, only the player moving or the world
-     * changing can produce a different result.
+     * Two questions, and both must hold. Are the pixels this position would write already
+     * painted, and has nothing near the player changed since this map was last scanned.
      * <p>
-     * Note this deliberately does <em>not</em> ask whether the map still has blank pixels.
-     * A map is only ever fully painted once someone has walked its whole cell, and pixels
-     * out of reach cannot be filled from here anyway, so that test skips nothing in practice.
+     * This covers the case that actually matters: <em>walking through explored terrain</em>.
+     * Standing still is rare; crossing ground somebody already mapped is constant, and every
+     * one of those scans repaints identical pixels.
      */
     protected boolean needsUpdate(ServerPlayer player, MapDataHolder holder) {
         if (!MapAtlasesConfig.skipUnchangedMaps.get()) return true;
         ScanState state = state(holder);
         if (state.lastScan < 0) return true;
-        if (state.sweepsAtAnchor < STRIPS) return true;
+        if (!state.regionPainted(player, holder)) return true;
         if (latestNearbyChange < 0) {
             latestNearbyChange = ChunkChangeIndex.latestChangeNear(
                     player.level(), player.getX(), player.getZ());
@@ -137,20 +127,37 @@ public abstract class UpdateScheduler {
         return state.lastScan <= latestNearbyChange;
     }
 
-    /** Strip classes in MapItem.update's step cycle: (k1 & 15) == (step & 15). */
-    private static final int STRIPS = 16;
-
     protected ScanState state(MapDataHolder holder) {
         return scanStates.computeIfAbsent(holder.id, i -> new ScanState());
     }
 
     protected static class ScanState {
+        static final int UNKNOWN = Integer.MIN_VALUE;
+
         long lastScan = -1L;
-        /** Where the player stood when the current sweep began. */
-        int anchorX = Integer.MIN_VALUE;
-        int anchorZ;
-        /** Scans performed without the player leaving that spot. */
-        int sweepsAtAnchor = 0;
+        /** Player pixel the paint check was last answered for, and its answer. */
+        private int paintedCache = UNKNOWN;
+        private int cachedPixelX = UNKNOWN;
+        private int cachedPixelZ;
+
+        /**
+         * Cached because the answer only changes when the player crosses a pixel boundary or
+         * a scan paints more. Pixels never revert to blank, so nothing else can alter it.
+         */
+        boolean regionPainted(ServerPlayer player, MapDataHolder holder) {
+            int pixel = 1 << holder.data.scale;
+            int px = Mth.floor(player.getX()) / pixel;
+            int pz = Mth.floor(player.getZ()) / pixel;
+            if (paintedCache != UNKNOWN && px == cachedPixelX && pz == cachedPixelZ) {
+                return paintedCache == 1;
+            }
+            boolean painted = ScanRegion.fullyPainted(player, holder.data,
+                    player.level().dimensionType().hasCeiling());
+            cachedPixelX = px;
+            cachedPixelZ = pz;
+            paintedCache = painted ? 1 : 0;
+            return painted;
+        }
     }
 
     protected abstract MapDataHolder poll(ServerPlayer player);

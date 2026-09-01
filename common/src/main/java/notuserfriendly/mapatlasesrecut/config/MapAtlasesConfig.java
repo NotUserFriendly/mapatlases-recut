@@ -75,8 +75,10 @@ public class MapAtlasesConfig {
 
         mapUpdateMultithreaded = builder.comment("Makes map update on different threads, speeding up the process. Disable if it causes issues. Especially on servers. Try turning on for a big performance improvement regarding map atlas update")
                 .define("multithreaded_update", UpdateType.SINGLE_PLAYER_ONLY);
-        debugUpdate = builder.comment("Visually shows map updates")
+        debugUpdate = builder.comment("Visually shows map updates. Makes the minimap flash on every scan")
                 .define("debug_map_updates", false);
+        logScanStats = builder.comment("Log how many map scans were performed vs skipped, every 10 seconds. Text only, no visual effect")
+                .define("log_scan_stats", false);
         markersUpdatePeriod = builder.comment("Every how many ticks should markers be updated")
                 .define("markers_update_period", 10, 1, 200);
 
@@ -89,6 +91,7 @@ public class MapAtlasesConfig {
     }
 
     public static final Supplier<Boolean> debugUpdate;
+    public static final Supplier<Boolean> logScanStats;
     public static final Supplier<Integer> markersUpdatePeriod;
     public static final Supplier<UpdateType> mapUpdateMultithreaded;
     public static final Supplier<Integer> maxMapCount;

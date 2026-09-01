@@ -85,6 +85,13 @@ public class MapDataHolder {
         };
     }
 
+    /** Markers without the colour scan, for when the scan is skipped as redundant. */
+    public void updateMarkersOnly(ServerPlayer player) {
+        if (canMultiThread(player.level())) {
+            updateMarkers(player, 128);
+        }
+    }
+
     private void updateMarkers(Player player, int maxRange) {
         int step = data.getHoldingPlayer(player).step;
         int frenquency = MapAtlasesConfig.markersUpdatePeriod.get();
