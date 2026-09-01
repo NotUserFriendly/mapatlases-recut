@@ -235,12 +235,27 @@ interval, and anything within 48 blocks still updates immediately.
 - [ ] Explorer/treasure maps composite free-form as their own quads (§5.5).
 - [ ] Toggles as UI checkboxes with an eye symbol, rather than config lines (D34 warning too).
 
-**§5.3's fill rate may have solved itself.** The whole argument for a scale-dependent range was
-that a coarse cell takes 64x more travel to fill than a fine one. Raising
-`map_updates_per_tick` from 1 to 10 raises the ceiling on *every* layer, so the coarse layer
-now fills roughly ten times faster than when the patchiness was observed. **Look at it again
-before building the invasive sample-density mixin** — it may already be adequate, and that
-mixin is the most invasive thing left in Pillar I.
+**§5.3 is still needed. *(Correction: I claimed raising `map_updates_per_tick` might have
+solved it. It cannot, and the operator's test confirmed coarse and fine still fill to the same
+range.)*** The two knobs are orthogonal:
+
+- **`map_updates_per_tick`** is how many scans happen — the same footprint painted faster
+- **`range`** is how far one scan reaches — untouched, and fixed at **256x256 blocks at every
+  scale**
+
+So a coarse map is only ever painted within 128 blocks of where someone actually walked,
+exactly like a fine one. Ten times the scans fills that footprint ten times faster and not one
+block wider.
+
+| R | reach at scale 4 | work | 16-sample cap saves | net |
+|---|---|---|---|---|
+| 1 (today) | 256b | 1x | 16x | 0.06x |
+| 2 | 512b | 4x | 16x | **0.25x**, cheaper than today |
+| **4** | **1024b** | 16x | 16x | **1.00x, free** |
+| 8 | 2048b, a whole cell | 64x | 16x | 4x |
+
+A coarse cell is 2048 blocks. R=4 reaches half its width at no net cost; R=8 covers it in one
+scan for 4x, which the raised ceiling can absorb.
 
 ### 2.4 Paper economy
 
