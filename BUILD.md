@@ -155,23 +155,42 @@ repeats forever over unchanged ground.
       for `Done (`. Mixins fail at *runtime*, so a compile is not evidence.
 - [ ] Stationary player and mapped-terrain crossing cost ≈ 0 — **needs the gate below**
 
-### ⏸ PLAYTEST GATE 1 — *Profile* — **NEEDS A HUMAN**
+### ✅ PLAYTEST GATE 1 — *Profile* — **PASSED 2026-09-01**
 
-Decides whether §5.3's sample-density cap is needed at all, so it gates layer work.
+Measured in game with `log_scan_stats`, not a profiler. A teleporter ring gave a
+repeatable loop so the same ground could be flown twice.
 
-**How to run it** (no profiler required):
+| Case | Scans / 10s | Opportunities skipped | Region already painted |
+|---|---|---|---|
+| Parked, settled | **9** (was 20) | 55% | 95% |
+| Flying **painted** ground | 9–85 | **83–96%** | 83–99% |
+| Flying painted ground, fastest segment | 176 | 52% | 53% |
+| Flying **new** ground | 111–187 | ~5% | 61–79% |
 
-1. `./verify-boot.sh` to confirm the build boots, then `./gradlew :neoforge:runClient`
-2. Set `debug_map_updates = true` in `map_atlases_recut-common.toml`
-3. Craft an atlas, feed it paper, and:
-   - [ ] **Walk new terrain** for a minute. Expect a low skip percentage.
-   - [ ] **Stand still** in mapped terrain for a minute. Expect skip near 100%.
-   - [ ] **Cross already-mapped ground** for a minute. Expect a high skip percentage.
-   - [ ] **Break and place blocks** while standing still — skips should drop, proving the
-         chunk stamp actually invalidates rather than the map simply going quiet.
-4. Read the `map scans in last 30s:` lines out of the log.
+Peak: 200 scans avoided against 9 performed in one window, roughly **819,000 column
+samples avoided per 10s**.
 
-- [ ] Then try raising `map_updates_per_tick` above 1 and see whether it still feels smooth.
+**The controlled loop mattered.** An earlier uncontrolled flight over the same edge showed
+only ~5% skipped and nearly led to the wrong conclusion, because that ground had not
+actually been painted yet. Same speeds, same path; the only difference was whether the
+terrain was already mapped. *Credit to the operator for catching the confound.*
+
+**Answers to the decisions this gate exists to settle:**
+
+- **D2 — layers, confirmed.** A coarse layer settles quickly once painted, because at coarse
+  scales the reach circle is small relative to the map, so it satisfies the painted test far
+  sooner than a fine one. The marginal cost of a second layer is therefore well below 2x,
+  and layers are affordable without a custom tile format.
+- **§5.3's sample-density cap is not needed for CPU reasons.** The invasive mixin that
+  redirects vanilla's inner sampling loop can stay unbuilt. *Note this does not close §5.3
+  entirely: the scale-dependent range multiplier was about how fast a coarse layer **fills**,
+  which is a gameplay question and still open.*
+- **`map_updates_per_tick` headroom exists** but was not needed to reach these numbers.
+
+**What this is not.** Not the "scan each chunk once" ideal. Vanilla's scan is player-centred
+and monolithic, so it cannot be aimed at just the dirty part, and in a living world something
+is always changing somewhere. What landed is throttling: a painted map refreshes on an
+interval, and anything within 48 blocks still updates immediately.
 
 ### 2.3 Layered atlas
 

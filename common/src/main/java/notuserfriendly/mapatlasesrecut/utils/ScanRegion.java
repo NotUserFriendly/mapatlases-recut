@@ -18,43 +18,6 @@ public final class ScanRegion {
     private ScanRegion() {
     }
 
-    // PROBE -- remove with the diagnostic in UpdateScheduler
-    public record Diagnosis(int checked, int blank, int firstBlankX, int firstBlankZ,
-                            int playerPixelX, int playerPixelZ, int reach) {
-        @Override
-        public String toString() {
-            return String.format("checked=%d blank=%d firstBlank=(%d,%d) playerPx=(%d,%d) reach=%d",
-                    checked, blank, firstBlankX, firstBlankZ, playerPixelX, playerPixelZ, reach);
-        }
-    }
-
-    // PROBE -- same walk as fullyPainted but counts instead of short-circuiting
-    public static Diagnosis diagnose(Player viewer, MapItemSavedData data, boolean hasCeiling) {
-        int i = 1 << data.scale;
-        int l = Mth.floor(viewer.getX() - (double) data.centerX) / i + 64;
-        int i1 = Mth.floor(viewer.getZ() - (double) data.centerZ) / i + 64;
-        int j1 = 128 / i;
-        if (hasCeiling) j1 /= 2;
-        byte[] colors = data.colors;
-        int checked = 0, blank = 0, fx = -1, fz = -1;
-        for (int k1 = l - j1 + 1; k1 < l + j1; k1++) {
-            if (k1 < 0 || k1 >= 128) continue;
-            for (int l1 = i1 - j1 - 1; l1 < i1 + j1; l1++) {
-                if (l1 < 0 || l1 >= 128) continue;
-                int i2 = Mth.square(k1 - l) + Mth.square(l1 - i1);
-                if (i2 >= j1 * j1) continue;
-                boolean thinnedRing = i2 > (j1 - 2) * (j1 - 2);
-                if (thinnedRing && (k1 + l1 & 1) == 0) continue;
-                checked++;
-                if (colors[k1 + l1 * 128] == 0) {
-                    blank++;
-                    if (fx < 0) { fx = k1; fz = l1; }
-                }
-            }
-        }
-        return new Diagnosis(checked, blank, fx, fz, l, i1, j1);
-    }
-
     public static boolean fullyPainted(Player viewer, MapItemSavedData data, boolean hasCeiling) {
         int i = 1 << data.scale;
         int l = Mth.floor(viewer.getX() - (double) data.centerX) / i + 64;

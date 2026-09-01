@@ -24,30 +24,6 @@ public final class ChunkChangeIndex {
     private ChunkChangeIndex() {
     }
 
-    // PROBE -- remove with the diagnostic in UpdateScheduler
-    public record Report(long latest, int chunkX, int chunkZ, int loaded, int changedSince) {}
-
-    // PROBE -- same walk as latestChangeNear, but says which chunk and how many are recent
-    public static Report report(Level level, double x, double z, long since) {
-        int minX = SectionPos.blockToSectionCoord((int) x - NEAR_RADIUS);
-        int maxX = SectionPos.blockToSectionCoord((int) x + NEAR_RADIUS);
-        int minZ = SectionPos.blockToSectionCoord((int) z - NEAR_RADIUS);
-        int maxZ = SectionPos.blockToSectionCoord((int) z + NEAR_RADIUS);
-        long latest = 0L;
-        int bx = 0, bz = 0, loaded = 0, recent = 0;
-        var source = level.getChunkSource();
-        for (int cx = minX; cx <= maxX; cx++) {
-            for (int cz = minZ; cz <= maxZ; cz++) {
-                if (!source.hasChunk(cx, cz)) continue;
-                loaded++;
-                long changed = ((ChunkChangeStamp) level.getChunk(cx, cz)).mapatlasesrecut$lastBlockChange();
-                if (changed > since) recent++;
-                if (changed > latest) { latest = changed; bx = cx; bz = cz; }
-            }
-        }
-        return new Report(latest, bx, bz, loaded, recent);
-    }
-
     /**
      * Latest game time at which a block changed in a loaded chunk the next scan would touch.
      * Unloaded chunks are skipped: they cannot have changed while unloaded, and asking for

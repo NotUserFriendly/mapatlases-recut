@@ -72,39 +72,9 @@ public abstract class UpdateScheduler {
             scanned.paintedCache = ScanState.UNKNOWN;
         }
         maybeReport(player.level().getGameTime());
-        maybeProbe(player, visible);
     }
 
-    // PROBE -- delete once the skip rate is understood. Dumps, per map in view, how much of
-    // the region a scan would write is still blank, so "the check is wrong" can be told apart
-    // from "the map genuinely is not painted yet".
-    private static long lastProbeTick = 0L;
-
-    private void maybeProbe(ServerPlayer player, List<MapDataHolder> visible) {
-        if (!MapAtlasesConfig.logScanStats.get()) return;
-        long now = player.level().getGameTime();
-        if (now - lastProbeTick < REPORT_PERIOD) return;
-        lastProbeTick = now;
-        boolean ceiling = player.level().dimensionType().hasCeiling();
-        long gt = player.level().getGameTime();
-        long oldestScan = visible.stream().mapToLong(h -> state(h).lastScan).min().orElse(0);
-        var rep = ChunkChangeIndex.report(player.level(), player.getX(), player.getZ(), oldestScan);
-        MapAtlasesMod.LOGGER.info(
-                "PROBE gameTime={} player=({}, {}) maps={} | chunks loaded={} changed-since-oldest-scan={} "
-                        + "newestChange={} (age {} ticks) at chunk ({}, {}) = block ({}, {})",
-                gt, (int) player.getX(), (int) player.getZ(), visible.size(),
-                rep.loaded(), rep.changedSince(), rep.latest(), gt - rep.latest(),
-                rep.chunkX(), rep.chunkZ(), rep.chunkX() * 16, rep.chunkZ() * 16);
-        for (MapDataHolder h : visible) {
-            ScanState st = state(h);
-            var d = ScanRegion.diagnose(player, h.data, ceiling);
-            MapAtlasesMod.LOGGER.info("PROBE   map {} scale={} center=({}, {}) {} lastScan={} nearbyChange={}",
-                    h.id.id(), h.data.scale, h.data.centerX, h.data.centerZ, d,
-                    st.lastScan, latestNearbyChange);
-        }
-    }
-
-    // --- measurement, for the profiling gate ---------------------------------------
+    // --- measurement ----------------------------------------------------------------
 
     private static final AtomicLong SCANNED = new AtomicLong();
     private static final AtomicLong SKIPPED = new AtomicLong();
@@ -128,8 +98,6 @@ public abstract class UpdateScheduler {
         long settled = SETTLED.getAndSet(0);
         long total = scanned + skipped;
         if (total == 0) {
-            // Silence here is ambiguous: it could mean the feature works, or that map
-            // updating never ran. Say which, so the absence is diagnosable.
             MapAtlasesMod.LOGGER.info(
                     "map scans in last {}s: none attempted (needs an unlocked atlas in hands "
                             + "or hotbar, holding at least one map, in a tracked dimension)",
@@ -138,9 +106,10 @@ public abstract class UpdateScheduler {
         }
         MapAtlasesMod.LOGGER.info(
                 "map scans in last {}s: {} performed, {} whole ticks skipped. "
-                        + "per map: {} considered, {} already painted ({}%)",
+                        + "per map: {} considered, {} already painted ({}%). ~{} column samples avoided",
                 REPORT_PERIOD / 20, scanned, skipped, considered, settled,
-                considered == 0 ? 0 : (100 * settled) / considered);
+                considered == 0 ? 0 : (100 * settled) / considered,
+                skipped * COLUMNS_PER_SCAN);
     }
 
     /**
