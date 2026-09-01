@@ -160,12 +160,6 @@ public abstract class UpdateScheduler {
         return needed;
     }
 
-    /**
-     * Interval a fully painted map still refreshes at, so distant changes are not lost, only
-     * delayed. Everything the player can see themselves change is caught by NEAR_RADIUS.
-     */
-    private static final int PAINTED_INTERVAL = 60;
-
     private boolean computeNeedsUpdate(ServerPlayer player, MapDataHolder holder) {
         if (!MapAtlasesConfig.skipUnchangedMaps.get()) return true;
         ScanState state = state(holder);
@@ -182,7 +176,10 @@ public abstract class UpdateScheduler {
         // still filling in: never throttle a map that is actually gaining pixels
         if (!state.regionPainted(player, holder)) return true;
 
-        return now - state.lastScan >= PAINTED_INTERVAL;
+        // Must comfortably exceed (maps in view / scan budget), or every map is permanently
+        // overdue and poll always finds work. Nine maps at a 60 tick interval demand 0.15
+        // scans a tick against a stationary budget of 0.1, which is why nothing was skipped.
+        return now - state.lastScan >= MapAtlasesConfig.paintedRefreshTicks.get();
     }
 
     protected ScanState state(MapDataHolder holder) {

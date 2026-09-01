@@ -67,6 +67,8 @@ public class MapAtlasesConfig {
                 .define("update_priority", UpdateFashion.SMART);
         mapUpdatePerTick = builder.comment("Max of maps to update each tick. Increase to make maps update faster")
                 .define("map_updates_per_tick", 1, 0, 100);
+        paintedRefreshTicks = builder.comment("How often a map whose picture is already complete is refreshed anyway, in ticks. Changes within 48 blocks always update immediately regardless; this only bounds how long a distant change can go unnoticed. Higher saves more work")
+                .define("painted_map_refresh_ticks", 200, 20, 2400);
         skipUnchangedMaps = builder.comment("Skip rescanning a map whose picture is already complete when no block near the player has changed since it was last scanned. Large saving when standing still or crossing explored ground")
                 .define("skip_unchanged_maps", true);
 
@@ -107,6 +109,7 @@ public class MapAtlasesConfig {
     public static final Supplier<String> pinMarkerId;
     public static final Supplier<Integer> mapUpdatePerTick;
     public static final Supplier<Boolean> skipUnchangedMaps;
+    public static final Supplier<Integer> paintedRefreshTicks;
     public static final Supplier<Double> mapRange;
     public static final Supplier<ActivationLocation> activationLocation;
 
