@@ -93,19 +93,6 @@ public class MapAtlasesClientConfig {
                 .define("only_show_north_cardinal", false);
         miniMapBorder = builder.comment("Shows map separation borders")
                 .define("map_borders", true);
-        // one per vanilla map scale, since an atlas can end up holding all of them
-        @SuppressWarnings("unchecked")
-        Supplier<Boolean>[] layers = new Supplier[5];
-        for (int sc = 0; sc <= 4; sc++) {
-            layers[sc] = builder.comment("Draw the scale " + sc + " layer (cells "
-                            + (128 << sc) + " blocks across)")
-                    .define("draw_layer_scale_" + sc, true);
-        }
-        drawLayer = layers;
-        drawOverlayLayer = builder.comment("Draw the free-form overlay layer: world generated maps such as shipwreck and buried treasure, which are centred on their structure rather than on the grid")
-                .define("draw_layer_overlay", true);
-        drawFinestLayerOnly = builder.comment("Skip a coarse map entirely when the atlas already holds finer maps covering the same ground. Saves drawing what is hidden anyway")
-                .define("draw_only_where_no_finer", false);
 
         minimapSkyLight = builder.comment("Use sky color for minimap")
                 .define("darken_at_night", false);
@@ -205,6 +192,21 @@ public class MapAtlasesClientConfig {
         convertXaero = builder.comment("Turn on to convert Xaeros minimap waypoints. Conversion will happen on world boot. Remember to turn back off")
                 .define("convert_xaeros_waypoints", false);
 
+        builder.pop();
+        builder.icon("map_atlases_recut:atlas").push("recut");
+        // one per vanilla map scale, since an atlas can end up holding all of them
+        @SuppressWarnings("unchecked")
+        Supplier<Boolean>[] layers = new Supplier[5];
+        for (int sc = 0; sc <= 4; sc++) {
+            layers[sc] = builder.comment("Draw the scale " + sc + " layer (cells "
+                            + (128 << sc) + " blocks across)")
+                    .define("draw_layer_scale_" + sc, true);
+        }
+        drawLayer = layers;
+        drawOverlayLayer = builder.comment("Draw the free-form overlay layer: world generated maps such as shipwreck and buried treasure, which are centred on their structure rather than on the grid")
+                .define("draw_layer_overlay", true);
+        drawFinestLayerOnly = builder.comment("Skip a coarse map entirely when the atlas already holds finer maps covering the same ground. Saves drawing what is hidden anyway")
+                .define("draw_only_where_no_finer", false);
         builder.pop();
 
         ModConfigHolder spec = builder.build();

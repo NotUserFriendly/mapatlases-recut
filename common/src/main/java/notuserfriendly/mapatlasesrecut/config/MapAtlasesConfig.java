@@ -67,6 +67,18 @@ public class MapAtlasesConfig {
                 .define("update_priority", UpdateFashion.SMART);
         mapUpdatePerTick = builder.comment("Max of maps to update each tick. Increase to make maps update faster")
                 .define("map_updates_per_tick", 1, 0, 100);
+        mapUpdateMultithreaded = builder.comment("Makes map update on different threads, speeding up the process. Disable if it causes issues. Especially on servers. Try turning on for a big performance improvement regarding map atlas update")
+                .define("multithreaded_update", UpdateType.SINGLE_PLAYER_ONLY);
+        debugUpdate = builder.comment("Visually shows map updates. Makes the minimap flash on every scan")
+                .define("debug_map_updates", false);
+        markersUpdatePeriod = builder.comment("Every how many ticks should markers be updated")
+                .define("markers_update_period", 10, 1, 200);
+
+        builder.pop();
+        builder.icon("map_atlases_recut:atlas").push("recut");
+        skipUnchangedMaps = builder.comment("Skip rescanning a map whose picture is already complete when no block near the player has changed since it was last scanned. Large saving when standing still or crossing explored ground")
+                .define("skip_unchanged_maps", true);
+
         // which scales an atlas fills in as you travel. Default is finest and coarsest, but a
         // player wanting scale 2 detail over a scale 3 base can say so.
         @SuppressWarnings("unchecked")
@@ -81,21 +93,11 @@ public class MapAtlasesConfig {
                 .define("limit_to_two_layers", true);
         paintedRefreshTicks = builder.comment("How often a map whose picture is already complete is refreshed anyway, in ticks. Changes within 48 blocks always update immediately regardless; this only bounds how long a distant change can go unnoticed. Higher saves more work")
                 .define("painted_map_refresh_ticks", 200, 20, 2400);
-        skipUnchangedMaps = builder.comment("Skip rescanning a map whose picture is already complete when no block near the player has changed since it was last scanned. Large saving when standing still or crossing explored ground")
-                .define("skip_unchanged_maps", true);
-
         mapRange = builder.comment("Range multiplier of the map update. Logic affects all maps, atlas or not. Change to make the range smaller or bigger")
                 .define("map_range_multiplier", 1, 0.0001, 10);
 
-        mapUpdateMultithreaded = builder.comment("Makes map update on different threads, speeding up the process. Disable if it causes issues. Especially on servers. Try turning on for a big performance improvement regarding map atlas update")
-                .define("multithreaded_update", UpdateType.SINGLE_PLAYER_ONLY);
-        debugUpdate = builder.comment("Visually shows map updates. Makes the minimap flash on every scan")
-                .define("debug_map_updates", false);
         logScanStats = builder.comment("Log how many map scans were performed vs skipped, every 10 seconds. Text only, no visual effect")
                 .define("log_scan_stats", false);
-        markersUpdatePeriod = builder.comment("Every how many ticks should markers be updated")
-                .define("markers_update_period", 10, 1, 200);
-
         builder.pop();
 
 

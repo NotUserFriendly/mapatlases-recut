@@ -155,20 +155,17 @@ public class MapAtlasesServerEvents {
     /**
      * Scales this atlas fills in as the player travels.
      * <p>
-     * Everything it already holds keeps updating, plus any enabled scale no finer than what it
-     * was crafted at. The finer bound matters: an atlas's scale is fixed at craft time, and
-     * enabling scale 0 should not silently give a scale 2 atlas detail it was never meant to
-     * have.
+     * Everything it already holds keeps updating, plus every enabled scale.
+     * <p>
+     * There is deliberately no "not finer than what it was crafted at" bound. Crafted scale
+     * is gone: an atlas is an atlas, and which layers it fills in is the player's choice.
      */
     private static Collection<Byte> layersToMaintain(MapCollection maps) {
-        TreeSet<Byte> existing = new TreeSet<>(maps.getScales());
-        if (existing.isEmpty()) existing.add((byte) 0);
-        byte finest = existing.first();
-
-        TreeSet<Byte> layers = new TreeSet<>(existing);
-        for (byte sc = finest; sc <= 4; sc++) {
+        TreeSet<Byte> layers = new TreeSet<>(maps.getScales());
+        for (byte sc = 0; sc <= 4; sc++) {
             if (MapAtlasesConfig.maintainLayer[sc].get()) layers.add(sc);
         }
+        if (layers.isEmpty()) layers.add((byte) 4);
 
         // "a detail layer over a base" is the design; more than two is allowed but opt in
         if (MapAtlasesConfig.limitToTwoLayers.get() && layers.size() > 2) {
