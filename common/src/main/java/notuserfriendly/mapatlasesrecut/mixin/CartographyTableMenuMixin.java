@@ -23,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import notuserfriendly.mapatlasesrecut.MapAtlasesMod;
-import notuserfriendly.mapatlasesrecut.config.MapAtlasesConfig;
 import notuserfriendly.mapatlasesrecut.PlatStuff;
 import notuserfriendly.mapatlasesrecut.client.MapAtlasesClient;
 import notuserfriendly.mapatlasesrecut.item.MapAtlasItem;
@@ -107,11 +106,6 @@ public abstract class CartographyTableMenuMixin extends AbstractContainerMenu im
                 for (MapType type : emptyTypes) {
                     int pooled = topEmpty.get(type) + bottomEmpty.get(type);
                     MapAtlasItem.getEmptyMaps(result).setAndAssign(result, type, pooled / 2);
-                }
-                if (MapAtlasesConfig.debugUpdate.get()) {
-                    MapAtlasesMod.LOGGER.info("atlas merge: top={} bottom={} types={} -> result={}",
-                            topEmpty.getAll(), bottomEmpty.getAll(), emptyTypes,
-                            MapAtlasItem.getEmptyMaps(result).getAll());
                 }
 
                 result.grow(1);
