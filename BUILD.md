@@ -217,24 +217,30 @@ and monolithic, so it cannot be aimed at just the dirty part, and in a living wo
 is always changing somewhere. What landed is throttling: a painted map refreshes on an
 interval, and anything within 48 blocks still updates immediately.
 
-### 2.3 Layered atlas
+### 2.3 Layered atlas — **built, needs judging**
 
-Data model first; it is smaller than the Excerpt claimed (§5.2).
+- [x] `MapCollection` holds several scales; the `d.scale != scale` rejection is gone
+      (`e04fe89`). **No codec change needed** — scale was never serialised.
+- [x] `selectBest` walks finest → coarsest; `selectAtScale` asks about one layer.
+- [x] `MapGridKey.scale()` recovers a key's own scale, so creation fills the right layer.
+- [x] One `MapsNeighborhood` per layer; `layersToMaintain` decides which (`935dfeb`).
+- [x] `drawAtlas` composites coarsest-first, positioned from each map's **world centre** so
+      layers align despite different cell sizes (`5643c4e`).
+- [x] Order forced by `endBatch()` between layers, not depth (`30f2d0c`).
+- [x] `MapAtlasesHUD` and `MapWidget` updated; hover uses `selectBest`.
+- [x] Per-scale toggles `draw_layer_scale_0..4`, plus `draw_layer_overlay` reserved (`12c55e3`).
+- [x] Separator layer chosen by zoom, and empty cells gridded (`de10d75`).
+- [x] Crafted scale removed, so any layer set is legal.
+- [ ] Scale-dependent `map_range_multiplier` — **see the note below before building this.**
+- [ ] Explorer/treasure maps composite free-form as their own quads (§5.5).
+- [ ] Toggles as UI checkboxes with an eye symbol, rather than config lines (D34 warning too).
 
-- [ ] `MapCollection`: remove the `d.scale != scale` rejection; key by the existing
-      `MapGridKey` (it already carries `gridWidth`)
-- [ ] `selectBest(x, z, slice)` — walk finest → coarsest, return first hit
-- [ ] `MapsNeighborhood` per layer
-- [ ] `AbstractAtlasDisplay.drawAtlas` — loop layers coarsest-first, one `mapBlocksSize` per pass
-- [ ] `MapAtlasesHUD`, `MapWidget` (pan/zoom/hover→cell), lectern renderer
-- [ ] Scale-dependent `map_range_multiplier` (the `@Local(ordinal=5) LocalIntRef` hook exists)
-- [ ] Explorer/treasure maps composite free-form as their own quads (§5.5)
-
-### Testable
-
-- [ ] `selectBest` returns the finest available layer covering a point
-- [ ] Multi-scale keys never collide in `maps`
-- [ ] Quad placement math: a coarse cell's four children land exactly in its quadrants
+**§5.3's fill rate may have solved itself.** The whole argument for a scale-dependent range was
+that a coarse cell takes 64x more travel to fill than a fine one. Raising
+`map_updates_per_tick` from 1 to 10 raises the ceiling on *every* layer, so the coarse layer
+now fills roughly ten times faster than when the patchiness was observed. **Look at it again
+before building the invasive sample-density mixin** — it may already be adequate, and that
+mixin is the most invasive thing left in Pillar I.
 
 ### 2.4 Paper economy
 
