@@ -429,7 +429,7 @@ for both loaders. The API is public, static, and closer to what we need than exp
 | `getAllTerrainDataAtDetailLevelAndPos(level, detailLevel, x, z, cache)` | **LOD at a chosen detail level.** Maps straight onto our scale layers: ask for coarse data for a coarse layer rather than sampling anything. |
 | `getColumnDataAtBlockPos(level, x, z, cache)` | one column, which is exactly one map pixel |
 | `getAllTerrainDataAtChunkPos` / `...AtRegionPos` | bulk fills |
-| **`raycast(level, x, y, z, pitch, yaw, ?, maxDist, cache)`** | returns `DhApiRaycastResult` with a position and a data point. **The spyglass feature (T3.2a) is already implemented in DH.** |
+| **`raycast(level, x, y, z, float, float, float, maxDist, cache)`** | returns `DhApiRaycastResult` carrying a `pos` and a `dataPoint`. A **primitive we can build T3.2a on**, not the feature itself. |
 | `createSoftCache()` | their own cache for repeated queries, so we do not write one |
 
 `DhApiTerrainDataPoint` carries `blockStateWrapper`, `biomeWrapper`, `topYBlockPos`,
@@ -441,6 +441,16 @@ means either resolving `getSerialString()` back to a `BlockState` (cacheable by 
 the set of surface blocks is small), or going through `IDhApiUnsafeWrapper` for the wrapped
 object, which is faster and version-fragile by their own labelling. **Resolve by serial string
 with a cache**, and treat the unsafe route as a fallback.
+
+**Do not confuse DH's raycast API with DH's spyglass config option.** *(I did.)* The config
+option loads higher-detail LODs while scoping, which is a rendering concern. The API method is
+a general terrain query through LOD data. Only the latter is useful to us, and it is a
+primitive rather than a finished feature.
+
+**Confirm before relying on it:** the three `float` parameters between the origin and the max
+distance are unnamed in the compiled interface. Most likely a direction vector, possibly
+pitch/yaw plus something else. A five minute test against a live DH install settles it, and the
+answer changes nothing structural either way.
 
 **Still open:** whether DH's server-side chunk pulling exposes data to a server-side mod, which
 would let far terrain feed vanilla maps directly and keep them authoritative. The operator

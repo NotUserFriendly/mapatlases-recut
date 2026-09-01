@@ -77,8 +77,7 @@ repeating the original claim.
 
 **The live proposal is Distant Horizons as an optional dependency** (§5.6b). Its API was
 verified against the real jar and is better than expected: LOD queries at a chosen detail level,
-per-column reads, a soft cache, and a **built-in raycast** that implements the spyglass idea
-outright. The friction is that DH gives block state wrappers, not map colours, so a serial
+per-column reads, a soft cache, and a **raycast primitive** T3.2a can be built on. The friction is that DH gives block state wrappers, not map colours, so a serial
 string to `BlockState` lookup with a cache is needed. The open question is sidedness: DH is a
 renderer and its data is client side, which is why §5.6a (cheap layer draws, vanilla layer
 records) unparks alongside it.
