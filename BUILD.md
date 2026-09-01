@@ -163,12 +163,19 @@ repeatable loop so the same ground could be flown twice.
 | Case | Scans / 10s | Opportunities skipped | Region already painted |
 |---|---|---|---|
 | Parked, settled | **9** (was 20) | 55% | 95% |
-| Flying **painted** ground | 9–85 | **83–96%** | 83–99% |
+| Flying **painted** ground | 18–85 | **65–90%** | 83–94% |
 | Flying painted ground, fastest segment | 176 | 52% | 53% |
 | Flying **new** ground | 111–187 | ~5% | 61–79% |
 
-Peak: 200 scans avoided against 9 performed in one window, roughly **819,000 column
+Best confirmed-motion window: 171 avoided against 18 performed, roughly **700,000 column
 samples avoided per 10s**.
+
+**Report timestamps are window ends, not starts** — a row labelled 11:47:52 covers
+11:47:42 to 11:47:52. A window showing 96% was discarded from the figures above because it
+straddled the operator stopping, so part of it was parked. `computeUpdateRate` reads the
+position delta each tick with no smoothing, so the rate collapses to 0.1 the instant a
+player stops; a decay across several windows means the stop fell inside one, not that the
+rate ramps down.
 
 **Reading the numbers later:** `considered` is polls x maps-in-view, and the poll rate is the
 speed-driven accumulator, so it doubles as a movement proxy. Every parked window reads
@@ -176,7 +183,7 @@ exactly 180 (20 polls x 9 maps at 0.1/tick); the 96% window read 1881, about ten
 so it was recorded in motion rather than after parking.
 
 **Skip rate degrades with speed.** The fastest window (1.8 polls/tick) skipped 52% while
-moderate ones skipped 83-96%. Faster travel crosses more pixel boundaries per second and
+moderate ones skipped 65-90%. Faster travel crosses more pixel boundaries per second and
 sweeps the 48 block window over more chunks. Noisy, since paintedness varies around a loop,
 but directional. **Worth remembering for Pillar II:** the Thousand League Boots at 80 m/s
 will see the least benefit of anything, so the feature that makes travel fast is also the one
