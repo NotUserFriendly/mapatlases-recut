@@ -61,11 +61,6 @@ public class MapAtlasesServerEvents {
     }
 
     public static void onPlayerTick(ServerPlayer player) {
-        // PROBE -- remove with ChunkGenProbe
-        if (MapAtlasesConfig.measureChunkGen.get()) {
-            ChunkGenProbe.runOnce(player.serverLevel());
-        }
-
         ItemStack atlas = MapAtlasesAccessUtils.getAtlasFromPlayerByConfig(player);
         if (atlas.isEmpty()) return;
         if (MapAtlasItem.isLocked(atlas)) return;

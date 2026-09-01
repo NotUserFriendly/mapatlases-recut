@@ -419,14 +419,33 @@ it if DH integration goes ahead** — the two are one piece of work.
 levels for exactly the reason we have scales, so a coarse layer should be able to consume a
 coarse LOD rather than sampling anything.
 
-**Verify before committing** — asserted from general knowledge, not checked:
+**Verified 2026-09-01** against `DistantHorizons-3.2.0-b-1.21.1-fabric-neoforge.jar`, one jar
+for both loaders. The API is public, static, and closer to what we need than expected.
 
-- the shape and stability of the DH API for 1.21.1, and whether terrain queries are public
-- whether LOD data can be read for arbitrary coordinates or only what DH has chosen to load
-- whether DH offers any server-side data, which would allow feeding vanilla maps after all
-- what happens on a dedicated server where the client has DH and the server does not
+`DhApiTerrainDataRepo.INSTANCE` implements `IDhApiTerrainDataRepo`:
 
-→ **D37.**
+| method | why it matters |
+|---|---|
+| `getAllTerrainDataAtDetailLevelAndPos(level, detailLevel, x, z, cache)` | **LOD at a chosen detail level.** Maps straight onto our scale layers: ask for coarse data for a coarse layer rather than sampling anything. |
+| `getColumnDataAtBlockPos(level, x, z, cache)` | one column, which is exactly one map pixel |
+| `getAllTerrainDataAtChunkPos` / `...AtRegionPos` | bulk fills |
+| **`raycast(level, x, y, z, pitch, yaw, ?, maxDist, cache)`** | returns `DhApiRaycastResult` with a position and a data point. **The spyglass feature (T3.2a) is already implemented in DH.** |
+| `createSoftCache()` | their own cache for repeated queries, so we do not write one |
+
+`DhApiTerrainDataPoint` carries `blockStateWrapper`, `biomeWrapper`, `topYBlockPos`,
+`bottomYBlockPos` and light levels. `DhApi.getApiMajorVersion()` exists for version gating.
+
+**The one real friction: no map colour.** `IDhApiBlockStateWrapper` exposes only
+`isAir/isSolid/isLiquid/getOpacity/getSerialString/getMaterialId`. Getting a vanilla `MapColor`
+means either resolving `getSerialString()` back to a `BlockState` (cacheable by string, since
+the set of surface blocks is small), or going through `IDhApiUnsafeWrapper` for the wrapped
+object, which is faster and version-fragile by their own labelling. **Resolve by serial string
+with a cache**, and treat the unsafe route as a fallback.
+
+**Still open:** whether DH's server-side chunk pulling exposes data to a server-side mod, which
+would let far terrain feed vanilla maps directly and keep them authoritative. The operator
+reports DH has server-side chunk pulling; that needs confirming against the API rather than the
+feature list. → **D37.**
 
 ### 5.6a — Division of labour: cheap layer draws, vanilla layer records — **PARKED**
 

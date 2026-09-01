@@ -98,8 +98,6 @@ public class MapAtlasesConfig {
         mapRange = builder.comment("Range multiplier of the map update. Logic affects all maps, atlas or not. Change to make the range smaller or bigger")
                 .define("map_range_multiplier", 1, 0.0001, 10);
 
-        measureChunkGen = builder.comment("PROBE, temporary. Once per server start, generate a handful of far away chunks at each world generation stage and log how long each takes. Blocks the server thread while it runs. Used to decide whether a coarse map layer can reach past the chunks the server has loaded")
-                .define("measure_chunk_generation", false);
         logScanStats = builder.comment("Log how many map scans were performed vs skipped, every 10 seconds. Text only, no visual effect")
                 .define("log_scan_stats", false);
         builder.pop();
@@ -112,7 +110,6 @@ public class MapAtlasesConfig {
 
     public static final Supplier<Boolean> debugUpdate;
     public static final Supplier<Boolean> logScanStats;
-    public static final Supplier<Boolean> measureChunkGen;
     public static final Supplier<Integer> markersUpdatePeriod;
     public static final Supplier<UpdateType> mapUpdateMultithreaded;
     public static final Supplier<Integer> maxMapCount;

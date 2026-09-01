@@ -40,15 +40,6 @@ public class MapAtlasesForge {
             MapAtlasesServerEvents.onDimensionUnload();
     }
 
-    // PROBE -- remove with ChunkGenProbe
-    @SubscribeEvent
-    public void mapAtlasesChunkGenProbe(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
-        if (notuserfriendly.mapatlasesrecut.config.MapAtlasesConfig.measureChunkGen.get()) {
-            notuserfriendly.mapatlasesrecut.utils.ChunkGenProbe.runOnce(
-                    event.getServer().overworld());
-        }
-    }
-
     @SubscribeEvent
     public void mapAtlasesPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
