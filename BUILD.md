@@ -195,8 +195,15 @@ Data model first; it is smaller than the Excerpt claimed (§5.2).
 ### 2.4 Paper economy
 
 - [ ] Paper ladder 8/16/24/32/40 per cell by scale (T1.1)
-- [ ] **Count the empty-map pool in paper, not maps** — semantic change touching tooltip,
-      loan and sheaf
+- [ ] **Decide D31 first: does the atlas store paper at all?** If not (recommended), the
+      `EMPTY_MAPS` component is deleted rather than reworked, which makes the stacking bug
+      class impossible instead of fixed, and `pity_activation_map_count` goes with it.
+      Everything below changes shape depending on this answer, so settle it before starting.
+  - [ ] Draw from inventory on demand, smallest denomination first, breaking down one larger
+        unit at a time so change stays bounded
+  - [ ] Paper count on the minimap HUD, plus a one-shot nudge when a cell fails for want of
+        paper — forgetting is a UI problem
+  - [ ] Rehome the loan (T1.3) as its own small component
 - [ ] Paper Sheaf ×9 — **both** entry points (cartography table *and* `MapAtlasesAddRecipe`)
 - [ ] Paper Block as refuel source, 72 paper
 - [ ] Empty-map debt (T1.3): `setAndAssign` for the debt, clamp removed from the repayment

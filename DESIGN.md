@@ -478,6 +478,53 @@ scale pricing needs fractional map costs. `EmptyMaps` holds `Map<MapType, Intege
 reinterpreting that as paper units is a semantic change touching the tooltip, the
 loan (T1.3) and the sheaf (T1.2).
 
+**T1.1a — The atlas stores no paper. It draws from your inventory. — *proposed, D31***
+
+*Operator's revision, 2026-09-01, flagged as not yet certain.* Instead of loading paper into
+an atlas ahead of time, the atlas checks the player's inventory when it wants to draw a map,
+takes what that cell costs, and makes the map immediately. Nothing is stored on the item.
+
+**The argument that decides it: this deletes the component that caused the stacking bugs.**
+`EMPTY_MAPS` is what held `{VANILLA: 0}` against a fresh `{}`, and the pity-count write put
+that state on any atlas a player merely carried (`528ac11`). Remove the component and that
+entire class of bug becomes **structurally impossible** rather than fixed. One fewer varying
+component also means atlases stack far more readily in general.
+
+**What else it buys:**
+
+- The reload chore disappears. Paper is a consumable in your bag, like arrows.
+- The paper ladder (T1.1) becomes legible: you watch paper leave your inventory per cell,
+  at the price that cell costs.
+- `pity_activation_map_count` becomes meaningless and can go. It only ever existed to prime
+  a pool that no longer exists, and it was one of the two things writing the bad state.
+- `accept_paper_for_empty_maps` becomes the behaviour rather than a toggle.
+
+**The cost the operator identified: you carry paper *and* compacted paper.** Realistic, but
+it invites forgetting. Two cheap mitigations:
+
+- **Consume smallest denomination first, and break down exactly one larger unit when nothing
+  small remains.** Change is then bounded to under one block's worth rather than accumulating
+  eight sheaves at once.
+- **Show the paper count on the minimap HUD**, the way arrows show on a bow. Forgetting is a
+  UI problem, and this is the UI answer. A one-shot nudge when a cell fails for want of paper
+  covers the rest.
+
+**What it breaks, and what that costs:**
+
+- **The loan (T1.3) loses its home.** It was a negative number in the pool. It survives as a
+  small `MapDebt` component instead: the atlas may create one map on credit, and refuses to
+  map anything further until paper repays it. Same mechanic, different storage, and arguably
+  cleaner for not riding on a count that also means something else.
+- **A lectern atlas cannot expand**, having no inventory to draw from. Almost certainly fine,
+  since a lectern is for reading.
+- **The tooltip's empty-map line goes**, replaced by nothing or by a note that it draws from
+  your bag.
+- **The Surveyor's absorb cost** comes out of inventory rather than a pool, which is better:
+  you watch it get spent.
+
+**Recommendation: adopt it.** The structural bug-deletion is worth more than the inventory
+clutter, and the clutter has a bounded fix. → **D31.**
+
 **T1.2 — Paper Sheaf.** 9 paper → 1 sheaf, counts as 9 when fed to an atlas. Solves
 carrying capacity, which with T1.1's numbers becomes a real problem (18,432 paper is
 288 stacks). `isValidEmptyMapIngredient` and `getMapCountToAdd` hardcode `Items.PAPER`
@@ -2854,6 +2901,11 @@ the inscribed block store and restore the original `BlockState` (recommend yes �
 makes modded stone work); do naturally-generated leylines use the same inscribed-block form.
 
 *(D28 — siting tension — resolved by splitting into two blocks.)*
+
+**D31 — Atlas stores no paper, drawing from inventory instead?** Recommended, chiefly
+because it makes the `EMPTY_MAPS` stacking bug class impossible rather than fixed. Costs:
+carrying paper and compacted paper together, the loan needing a small component of its own,
+and lectern atlases no longer expanding. See T1.1a.
 
 **D29 — Surveyor access control.** Anyone can absorb; fine for a shared base, wrong for a
 public server. A vanilla lock component is the cheap answer.
