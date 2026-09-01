@@ -93,8 +93,17 @@ public class MapAtlasesClientConfig {
                 .define("only_show_north_cardinal", false);
         miniMapBorder = builder.comment("Shows map separation borders")
                 .define("map_borders", true);
-        drawCoarseLayers = builder.comment("Draw layers coarser than the atlas's finest, underneath it. Turn off to see only the detailed maps")
-                .define("draw_coarse_layers", true);
+        // one per vanilla map scale, since an atlas can end up holding all of them
+        @SuppressWarnings("unchecked")
+        Supplier<Boolean>[] layers = new Supplier[5];
+        for (int sc = 0; sc <= 4; sc++) {
+            layers[sc] = builder.comment("Draw the scale " + sc + " layer (cells "
+                            + (128 << sc) + " blocks across)")
+                    .define("draw_layer_scale_" + sc, true);
+        }
+        drawLayer = layers;
+        drawOverlayLayer = builder.comment("Draw the free-form overlay layer: world generated maps such as shipwreck and buried treasure, which are centred on their structure rather than on the grid")
+                .define("draw_layer_overlay", true);
         drawFinestLayerOnly = builder.comment("Skip a coarse map entirely when the atlas already holds finer maps covering the same ground. Saves drawing what is hidden anyway")
                 .define("draw_only_where_no_finer", false);
 
@@ -216,7 +225,8 @@ public class MapAtlasesClientConfig {
     public static final Supplier<Boolean> drawMinimapCardinals;
     public static final Supplier<Boolean> miniMapOnlyNorth;
     public static final Supplier<Boolean> miniMapBorder;
-    public static final Supplier<Boolean> drawCoarseLayers;
+    public static final Supplier<Boolean>[] drawLayer;
+    public static final Supplier<Boolean> drawOverlayLayer;
     public static final Supplier<Boolean> drawFinestLayerOnly;
     public static final Supplier<Boolean> minimapSkyLight;
     public static final Supplier<Boolean> mapChangeSound;

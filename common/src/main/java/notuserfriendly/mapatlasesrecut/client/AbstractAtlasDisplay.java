@@ -21,6 +21,7 @@ import org.joml.Matrix4f;
 import notuserfriendly.mapatlasesrecut.utils.MapDataHolder;
 import notuserfriendly.mapatlasesrecut.utils.MapType;
 
+import notuserfriendly.mapatlasesrecut.MapAtlasesMod;
 import notuserfriendly.mapatlasesrecut.config.MapAtlasesClientConfig;
 import notuserfriendly.mapatlasesrecut.map_collection.MapCollection;
 
@@ -137,6 +138,7 @@ public abstract class AbstractAtlasDisplay {
 
                     MapDataHolder state = getMapAtLayer(cx, cz, layer);
                     if (state == null) continue;
+                    if (layer > ref) probeLayer(layer, cx, cz, state);
                     if (skipIfFinerCovers && layer > ref && isCoveredByFiner(cx, cz, layer, ref)) continue;
 
                     boolean drawPlayerIcons = !this.drawBigPlayerMarker
@@ -208,6 +210,34 @@ public abstract class AbstractAtlasDisplay {
         graphics.enableScissor(x, y, x1, y1);
     }
 
+    // PROBE -- remove once the pale bar is understood. Dumps the painted bounding box of
+    // each layer's map once a second, so the shape drawn can be compared with the shape
+    // actually painted instead of inferred from a screenshot.
+    private static long lastLayerProbe = 0;
+
+    private static void probeLayer(byte layer, int cx, int cz, MapDataHolder h) {
+        long now = System.currentTimeMillis();
+        if (now - lastLayerProbe < 1000) return;
+        lastLayerProbe = now;
+        byte[] c = h.data.colors;
+        int minX = 999, maxX = -1, minZ = 999, maxZ = -1, painted = 0;
+        for (int z = 0; z < 128; z++) {
+            for (int x = 0; x < 128; x++) {
+                if (c[x + z * 128] == 0) continue;
+                painted++;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+            }
+        }
+        MapAtlasesMod.LOGGER.info(
+                "PROBE layer scale={} cell=({}, {}) painted={} px  bbox x[{}..{}] z[{}..{}] = {}x{} px = {}x{} blocks",
+                layer, cx, cz, painted, minX, maxX, minZ, maxZ,
+                maxX - minX + 1, maxZ - minZ + 1,
+                (maxX - minX + 1) << layer, (maxZ - minZ + 1) << layer);
+    }
+
     /**
      * True when every finer cell overlapping this coarse one exists, so the coarse map would
      * be completely hidden anyway. Checked at the layer immediately below, not all the way
@@ -242,10 +272,8 @@ public abstract class AbstractAtlasDisplay {
     protected static Iterable<Byte> coarsestFirst(MapCollection maps) {
         List<Byte> ordered = new ArrayList<>(maps.getScales());
         Collections.reverse(ordered);
-        if (!MapAtlasesClientConfig.drawCoarseLayers.get() && ordered.size() > 1) {
-            // keep only the finest, which getScales() puts last before the reverse
-            return List.of(ordered.get(ordered.size() - 1));
-        }
+        ordered.removeIf(sc -> sc >= 0 && sc < MapAtlasesClientConfig.drawLayer.length
+                && !MapAtlasesClientConfig.drawLayer[sc].get());
         return ordered;
     }
 
